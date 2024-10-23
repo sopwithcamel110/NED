@@ -1,171 +1,180 @@
-# from reportlab.lib.pagesizes import letter
-# from reportlab.lib import colors
-# from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-# from reportlab.platypus import BaseDocTemplate, Paragraph, Frame, PageTemplate
+import random
+from enum import Enum
+from reportlab.lib.pagesizes import A4
+from reportlab.pdfgen import canvas
+from reportlab.lib.units import inch
 
-# #Take max min length to find max width margin for column 
-# # FUTURE: have page size param to determine max length of allowed columns
-# def content_size(content : list[str]) -> tuple[int,int]: 
-#     max_width_len = len(max(content, key=len))
-#     min_width_len = len(min(content, key=len))
+# Enum for media types
+class MediaType(Enum):
+    TEXT = "text"
+    IMAGE = "image"
 
-#     dif_width_len = (max_len - min_len) // 2
+def image_create():
+    return 0
 
+def text_create(c, topic, bullet_points, current_x, current_y, font_size, page_width, page_height, top_margin, msf_height, total_height):
+    topic_width = max(c.stringWidth(s, "Helvetica-Bold", font_size) for s in [topic] + bullet_points) 
+    if current_y - (len(bullet_points)+1)*font_size <= 0:
+        c.showPage()
+        total_height = msf_height = 0
+        current_x = 0
+        current_y = page_height-top_margin
+    elif current_x + topic_width > page_width:
+        # Move to the next line if the topic doesn't fit horizontally
+        current_x = 0
+        total_height += msf_height
+        msf_height = 0
+        current_y = page_height-(total_height*font_size)-top_margin  # Move down to the next line
+    msf_height = max(msf_height, len(bullet_points)+1) # +1 for topic
 
-#     return (min_width_len + dif_width_len), 0
+    # Draw the topic in bold
+    c.setFont("Helvetica-Bold", font_size)
+    c.drawString(current_x, current_y, topic)
 
-# def createpdf(topics: dict[str, list[str]], filename: str): 
-#     pdf = BaseDocTemplate(filename, pagesize=letter)
+    c.setFont("Helvetica", font_size)  # Smaller font size to fit more text
+    for i, bullet in enumerate(bullet_points):
+        bullet_text = f'• {bullet}'
+        bullet_width = c.stringWidth(bullet_text, "Helvetica", font_size)
 
-#     width, height = letter
-#     styles = getSampleStyleSheet()
-#     custom_style = ParagraphStyle(
-#         name="CustomStyle",
-#         fontName="Helvetica",
-#         fontSize=10,
-#         leading=14,  # Line spacing
-#         textColor=colors.black,
-#         leftIndent=0,
-#         rightIndent=0,
-#         firstLineIndent=0,
-#         spaceAfter=10,  # Space after the paragraph
-#         alignment=0,  # Left-aligned
-#     )
+        # Draw bullet point
+        c.drawString(current_x, current_y-((i+1)*font_size), bullet_text)
+    
+    # If the next topic exceeds the right margin, move to the next line
+    if current_x > page_width:
+        current_x = 0
+        current_y -= font_size
 
-#     paragraph = Paragraph(text_content, custom_style)
-#     frame_width = 200
-#     frame_height = height - 50
+    # Check for page overflow
+    current_x += topic_width  # Update x position after the topic
 
-
-# # Create a paragraph object with the custom style
-# paragraph = Paragraph(text_content, custom_style)
-
-# # Create a narrow frame to resemble the width from the image
-# frame_width = 200  # Set the width to be narrower (200 points wide)
-# frame_height = height - 50  # Adjust the height to leave a small margin at the bottom
-
-# # Define the frame, placing it at the top-left corner
-# narrow_frame = Frame(0, height - frame_height, frame_width, frame_height)  # (x=0, y=top, width, height)
-
-# # Create a PageTemplate using the Frame
-# template = PageTemplate(id="narrow_frame_template", frames=[narrow_frame])
-
-# # Add the PageTemplate to the document
-# doc.addPageTemplates([template])
-
-# # Build the document with the paragraph
-# doc.build([paragraph])
-
-from reportlab.lib.pagesizes import letter
-from reportlab.lib import colors
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.platypus import BaseDocTemplate, Paragraph, Frame, PageTemplate, Spacer
-
-# Create a PDF document using BaseDocTemplate
-doc = BaseDocTemplate("narrow_paragraphs_example.pdf", pagesize=letter)
-
-# Get width and height of the page
-width, height = letter
-
-# Get a stylesheet and create custom paragraph styles
-styles = getSampleStyleSheet()
-
-# Create custom paragraph styles for title and content
-title_style = ParagraphStyle(
-    name="TitleStyle",
-    fontName="Helvetica-Bold",
-    fontSize=14,
-    leading=16,  # Line spacing for the title
-    textColor=colors.black,
-    spaceAfter=4,  # Reduced space after the title
-)
-
-content_style = ParagraphStyle(
-    name="ContentStyle",
-    fontName="Helvetica",
-    fontSize=12,
-    leading=14,  # Line spacing for the content
-    textColor=colors.black,
-    leftIndent=0,
-    rightIndent=0,
-    firstLineIndent=0,
-    spaceBefore=0,  # No space before each paragraph
-    spaceAfter=4,  # Reduced space after each content string
-    alignment=0,  # Left-aligned
-)
-
-# Example dictionary: title (key) and content (value)
-content_dict = {
-    "Charge": [
-        "You are hereby charged that on the 28th day of May, 1970, you did willfully, unlawfully,",
-        "and with malice of forethought, publish an alleged English-Hungarian phrase book with",
-        "intent to cause a breach of the peace. How do you plead?"
-    ],
-    "Defense": [
-        "The accused pleads not guilty on all charges.",
-        "The defense will provide evidence that the phrase book was intended as a cultural aid."
-    ],
-    "Prosecution": [
-        "The prosecution contends that the phrase book was created with malicious intent.",
-        "Several witnesses have testified to its inflammatory nature."
-    ],
-    "S1": [
-        "You are hereby charged that on the 28th day of May, 1970, you did willfully, unlawfully,",
-        "and with malice of forethought, publish an alleged English-Hungarian phrase book with",
-        "intent to cause a breach of the peace. How do you plead?"
-    ],
-    "S2": [
-        "The accused pleads not guilty on all charges.",
-        "The defense will provide evidence that the phrase book was intended as a cultural aid."
-    ],
-    "S3": [
-        "The prosecution contends that the phrase book was created with malicious intent.",
-        "Several witnesses have testified to its inflammatory nature."
-    ],
-    "S4": [
-        "You are hereby charged that on the 28th day of May, 1970, you did willfully, unlawfully,",
-        "and with malice of forethought, publish an alleged English-Hungarian phrase book with",
-        "intent to cause a breach of the peace. How do you plead?"
-    ],
-    "S5": [
-        "The accused pleads not guilty on all charges.",
-        "The defense will provide evidence that the phrase book was intended as a cultural aid."
-    ],
-    "S6": [
-        "The prosecution contends that the phrase book was created with malicious intent.",
-        "Several witnesses have testified to its inflammatory nature."
-    ]
+    return msf_height, total_height, current_x, current_y
+# Mapping media types to functions
+media_function_map = {
+    MediaType.TEXT: text_create,
+    MediaType.IMAGE: image_create
 }
 
-# Create a list to store the flowables (paragraphs, spacers, etc.)
-flowables = []
+# Stub function for handling image creation (to be implemented)
+def create_pdf(data_list, filename):
+    c = canvas.Canvas(filename, pagesize=A4)
+    page_width, page_height = A4
+    font_size = 5
+    top_margin = font_size
+    current_x = 0
+    current_y = page_height - top_margin
 
-# Loop over the dictionary and create paragraphs for each title and its content
-for title, content_list in content_dict.items():
-    # Create a title paragraph
-    title_paragraph = Paragraph(title, title_style)
-    flowables.append(title_paragraph)
+    total_height = 0
+    msf_height = 0
+    for entry in data_list:
+        topic = entry["topic"]
+        content = entry["content"]
+        media_type_str = entry["media"]
 
-    # Create content paragraphs
-    for content in content_list:
-        content_paragraph = Paragraph(content, content_style)
-        flowables.append(content_paragraph)
+        try:
+            media_type_enum = MediaType(media_type_str)
+            
+            # Pass the parameters, including page dimensions
+            msf_height, total_height, current_x, current_y = media_function_map[media_type_enum](
+                c, topic, content, current_x, current_y, font_size, page_width, page_height, top_margin,
+                msf_height, total_height)
+        except KeyError:
+            print(f"No function found for media type: {media_type_str}")
+        except ValueError:
+            print(f"Invalid media type: {media_type_str}")
 
-    # Add small space after each section (title + content)
-    flowables.append(Spacer(1, 8))  # Spacer with reduced space between sections
+    # Save the PDF
+    c.save()
 
-# Create a narrow frame to resemble the width from the image
-frame_width = 200  # Set the width to be narrower (200 points wide)
-frame_height = height - 50  # Adjust the height to leave a small margin at the bottom
 
-# Define the frame, placing it at the top-left corner
-narrow_frame = Frame(0, height - frame_height, frame_width, frame_height)  # (x=0, y=top, width, height)
 
-# Create a PageTemplate using the Frame
-template = PageTemplate(id="narrow_frame_template", frames=[narrow_frame])
+# Example data with mixed media types
+data_list = [
+    {"topic": "Python Basics", "content": [
+        "print() - Outputs text to the console.",
+        "for loops - Used to iterate over a sequence.",
+        "if statements - Conditional execution."
+    ], "media": "text"},
+    {"topic": "Sample Image", "content": ["some other info", "here is more info"], "media": "text"},
+    {"topic": "Python Basics", "content": [
+        "print() - Outputs text to the console.",
+        "for loops - Used to iterate over a sequence.",
+        "if statements - Conditional execution."
+    ], "media": "text"},
+    {"topic": "Sample Image", "content": ["some other info", "here is more info"], "media": "text"},
+      {"topic": "Python Basics", "content": [
+        "print() - Outputs text to the console.",
+        "for loops - Used to iterate over a sequence.",
+        "if statements - Conditional execution."
+    ], "media": "text"},
+    {"topic": "Sample Image", "content": ["some other info", "here is more info"], "media": "text"},
+    {"topic": "Python Basics", "content": [
+        "print() - Outputs text to the console.",
+        "for loops - Used to iterate over a sequence.",
+        "if statements - Conditional execution."
+    ], "media": "text"},
+    {"topic": "Sample Image", "content": ["some other info", "here is more info"], "media": "text"},
+      {"topic": "Python Basics", "content": [
+        "print() - Outputs text to the console.",
+        "for loops - Used to iterate over a sequence.",
+        "if statements - Conditional execution."
+    ], "media": "text"},
+    {"topic": "Sample Image", "content": ["some other info", "here is more info"], "media": "text"},
+    {"topic": "Python Basics", "content": [
+        "print() - Outputs text to the console.",
+        "for loops - Used to iterate over a sequence.",
+        "if statements - Conditional execution."
+    ], "media": "text"},
+    {"topic": "Sample Image", "content": ["some other info", "here is more info"], "media": "text"},
+      {"topic": "Python Basics", "content": [
+        "print() - Outputs text to the console.",
+        "for loops - Used to iterate over a sequence.",
+        "if statements - Conditional execution."
+    ], "media": "text"},
+    {"topic": "Sample Image", "content": ["some other info", "here is more info"], "media": "text"},
+    {"topic": "Python Basics", "content": [
+        "print() - Outputs text to the console.",
+        "for loops - Used to iterate over a sequence.",
+        "if statements - Conditional execution."
+    ], "media": "text"},
+    {"topic": "Sample Image", "content": ["some other info", "here is more info"], "media": "text"},
+      {"topic": "Python Basics", "content": [
+        "print() - Outputs text to the console.",
+        "for loops - Used to iterate over a sequence.",
+        "if statements - Conditional execution."
+    ], "media": "text"},
+    {"topic": "Sample Image", "content": ["some other info", "here is more info"], "media": "text"},
+    {"topic": "Python Basics", "content": [
+        "print() - Outputs text to the console.",
+        "for loops - Used to iterate over a sequence.",
+        "if statements - Conditional execution."
+    ], "media": "text"},
+    {"topic": "Sample Image", "content": ["some other info", "here is more info"], "media": "text"},
+      {"topic": "Python Basics", "content": [
+        "print() - Outputs text to the console.",
+        "for loops - Used to iterate over a sequence.",
+        "if statements - Conditional execution."
+    ], "media": "text"},
+    {"topic": "Sample Image", "content": ["some other info", "here is more info"], "media": "text"},
+    {"topic": "Python Basics", "content": [
+        "print() - Outputs text to the console.",
+        "for loops - Used to iterate over a sequence.",
+        "if statements - Conditional execution."
+    ], "media": "text"},
+    {"topic": "Sample Image", "content": ["some other info", "here is more info"], "media": "text"},
+      {"topic": "Python Basics", "content": [
+        "print() - Outputs text to the console.",
+        "for loops - Used to iterate over a sequence.",
+        "if statements - Conditional execution."
+    ], "media": "text"},
+    {"topic": "Sample Image", "content": ["some other info", "here is more info"], "media": "text"},
+    {"topic": "Python Basics", "content": [
+        "print() - Outputs text to the console.",
+        "for loops - Used to iterate over a sequence.",
+        "if statements - Conditional execution."
+    ], "media": "text"},
+    {"topic": "Sample Image", "content": ["some other info", "here is more info"], "media": "text"}
+    
+]
 
-# Add the PageTemplate to the document
-doc.addPageTemplates([template])
-
-# Build the document with the list of flowables (title + content paragraphs)
-doc.build(flowables)
+# Create the PDF
+create_pdf(data_list, "output_mixed_media.pdf")
