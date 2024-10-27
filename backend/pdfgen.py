@@ -3,29 +3,15 @@ from io import BufferedWriter
 import os
 import random
 import tempfile
+from media import *
 from typing import Any, Dict, List, Tuple
 
+from reportlab.platypus import SimpleDocTemplate, Image, Spacer
+from reportlab.lib.units import inch
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
 
 ContentType = Dict[str, Any]
-
-class MediaType(Enum):
-    TEXT = "text"
-    IMAGE = "image"
-
-def get_dimensions(c, content: ContentType, font_size: int) -> Tuple[float, float]:
-    """Calculate the width and height of the given content."""
-    match MediaType(content['media']):
-        case MediaType.TEXT:
-            topic = content['topic']
-            bullet_points = content['content']
-            topic_width = max(c.stringWidth(s, "Helvetica-Bold", font_size) for s in [topic] + bullet_points) 
-            topic_height = len(bullet_points)+1 # +1 for topic
-            return topic_width, topic_height
-        case MediaType.IMAGE:
-            # Proof of concept placeholder
-            return content['width'], content['height']
 
 def place_content(c: canvas.Canvas, content: ContentType, x: float, y: float, font_size: int) -> None:
     """Place content directly at x and y on the given canvas."""
@@ -42,9 +28,12 @@ def place_content(c: canvas.Canvas, content: ContentType, x: float, y: float, fo
             for i, bullet in enumerate(bullet_points):
                 # Draw bullet point
                 c.drawString(x, y-((i+1)*font_size), f'• {bullet}')
+
         case MediaType.IMAGE:
-            # Proof of concept placeholder
-            pass
+            image_path = content['content'][0]
+            image_width = content['content'][1] * inch 
+            image_height = content['content'][2] * inch
+            c.drawImage(image_path, x, y - image_height, width=image_width, height=image_height)
 
 def create_pdf(data_dict: List[ContentType], file: BufferedWriter) -> None:
     """
@@ -63,21 +52,36 @@ def create_pdf(data_dict: List[ContentType], file: BufferedWriter) -> None:
     msf_height = 0 # max-so-far height
     for content in data_dict:
         topic_width, topic_height = get_dimensions(c, content, font_size)
-   
-        if current_x + topic_width > page_width:
-            # Topic goes off right of page, go to next line
-            current_x = 0
-            total_height += msf_height
-            msf_height = 0
-            current_y = page_height-(total_height*font_size)-top_margin  # Move down to the next line
-        elif current_y - (topic_height*font_size) <= 0:
-            # Topic goes off bottom of page, create a new one
-            c.showPage()
-            total_height = msf_height = 0
-            current_x = 0
-            current_y = page_height-top_margin 
+
+        c, current_x, current_y, total_height, msf_height = set_dimensions(
+            c,
+            content,
+            page_width,
+            page_height,
+            current_x,
+            current_y,
+            total_height,
+            msf_height,
+            top_margin,
+            font_size,
+            topic_width,
+            topic_height
+        )
+        # if current_x + topic_width > page_width:
+        #     # Topic goes off right of page, go to next line
+        #     current_x = 0
+        #     total_height += msf_height
+        #     msf_height = 0
+        #     current_y = page_height-(total_height*font_size)-top_margin  # Move down to the next line
+        # elif current_y - (topic_height*font_size) <= 0:
+        #     # Topic goes off bottom of page, create a new one
+        #     c.showPage()
+        #     total_height = msf_height = 0
+        #     current_x = 0
+        #     current_y = page_height-top_margin 
         msf_height = max(msf_height, topic_height)
 
+        print({f"x: {current_x:.1f}, y: {current_y:.1f}"}, msf_height, content['media'], )
         place_content(c, content, current_x, current_y, font_size)
 
         # Check for page overflow
@@ -98,7 +102,7 @@ def create_cheatsheet_pdf(data_dict: List[ContentType]) -> str:
         create_pdf(data_dict, temp_file)
 
     return file_path
-        
+
 # Example data with 20 topics
 data_dict = {
     "Python Basics": [
@@ -114,7 +118,9 @@ data_dict = {
     "Lambda Functions": [
         "Anonymous function: lambda x: x * 2 - This returns double the input.",
         "Usage example: (lambda x, y: x + y)(3, 5)  # Outputs 8",
-        "Can be used in higher-order functions like map, filter, reduce."
+        "Can be used in higher-order functions like map, filter, reduce.",
+        "Here is more information on the subject",
+        "Even more bullet points",
     ],
     "Sorting in Python": [
         "sorted(iterable, key=lambda x: x[1]) - Sorts by second element in tuples.",
@@ -207,6 +213,14 @@ scaled_data = []
 for i in range(50):
     items_copy = list(data_dict.items())
     random.shuffle(items_copy)
+    if i % 12 == 0:
+        for k, v in items_copy:
+            scaled_data.append({
+                'topic': "Image",
+                'content': ["testImage.png", 2, 1],
+                'media': 'image',
+            })
+
     for k, v in items_copy:
         scaled_data.append({
             'topic': k+str(i),
