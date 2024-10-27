@@ -27,7 +27,7 @@ def get_dimensions(c, content: ContentType, font_size: int) -> Tuple[float, floa
             return topic_width, topic_height
         case MediaType.IMAGE:
             #content width, content height
-            return content['content'][1] * inch, content['content'][2] * inch
+            return content['content'][1] * inch, (content['content'][2] * inch) // 5
 
 def set_dimensions(c: canvas.Canvas, content: ContentType, page_width, page_height, current_x: int, current_y: int, total_height: int, 
                 msf_height: int, top_margin: int, font_size: int, topic_width: int, topic_height):
