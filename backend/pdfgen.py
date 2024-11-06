@@ -9,6 +9,11 @@ from reportlab.platypus import SimpleDocTemplate, Image, Spacer
 from reportlab.lib.units import inch
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
+from reportlab.pdfbase.ttfonts import TTFont
+from reportlab.pdfbase import pdfmetrics
+
+pdfmetrics.registerFont(TTFont('Bullet-Font', 'fonts/Notosans-Regular.ttf'))
+pdfmetrics.registerFont(TTFont('Topic-Font', 'fonts/NotoSans-Bold.ttf'))
 
 ContentType = Dict[str, Any]
 
@@ -22,7 +27,7 @@ def get_dimensions(c, content: ContentType, font_size: int) -> Tuple[float, floa
         case MediaType.TEXT:
             topic = content['topic']
             bullet_points = content['content']
-            topic_width = max(c.stringWidth(s, "Helvetica-Bold", font_size) for s in [topic] + bullet_points) 
+            topic_width = max(c.stringWidth(s, "Topic-Font", font_size) for s in [topic] + bullet_points) 
             topic_height = len(bullet_points)+1 # +1 for topic
             return topic_width, topic_height
         case MediaType.IMAGE:
@@ -37,10 +42,10 @@ def place_content(c: canvas.Canvas, content: ContentType, x: float, y: float, fo
             bullet_points = content['content']
 
             # Draw the topic in bold
-            c.setFont("Helvetica-Bold", font_size)
+            c.setFont("Topic-Font", font_size)
             c.drawString(x, y, topic)
 
-            c.setFont("Helvetica", font_size)  # Smaller font size to fit more text
+            c.setFont("Bullet-Font", font_size)  # Smaller font size to fit more text
             for i, bullet in enumerate(bullet_points):
                 # Draw bullet point
                 c.drawString(x, y-((i+1)*font_size), f'• {bullet}')
@@ -107,109 +112,43 @@ def create_cheatsheet_pdf(data_dict: List[ContentType]) -> str:
 
 data_dict = [
     {
-        "topic": "Python Basics",
-        "content": [
-            "Variables store data and can be of various types such as int, float, and str.",
-            "Control structures like if-else, for, and while loops allow for flow control.",
-            "Functions are defined using the def keyword and help modularize code.",
-            "Comments are added with a # and are not executed by the interpreter."
-        ],
-        "media": "text"
-    },
-    {
-        "topic": "Object-Oriented Programming",
-        "content": [
-            "Classes are blueprints for creating objects, defined using the class keyword.",
-            "An object is an instance of a class and has attributes and methods.",
-            "Inheritance allows classes to derive properties from other classes.",
-            "Encapsulation restricts access to methods and variables."
-        ],
-        "media": "text"
-    },
-    {
-        "topic": "Python Libraries",
-        "content": [
-            "NumPy is used for numerical computations and handling arrays.",
-            "Pandas is great for data manipulation and analysis.",
-            "Matplotlib helps create visualizations like line charts and bar charts.",
-            "Requests is a library for making HTTP requests in Python."
-        ],
-        "media": "text"
-    },
-    # {
-    #     "topic": "Images",
-    #     "content": [
-    #         "Image1.png", 4, 2
-    #     ],
-    #     "media": "image"
-    # },
-    {
         "topic": "Images",
         "content": [
-            "Image1.png", 4, 2
+            "example/dag.png", 4, 2
         ],
         "media": "image"
     },
     {
-        "topic": "Error Handling",
+        "topic": "Images",
         "content": [
-            "Exceptions are handled using try, except, and finally blocks.",
-            "Custom exceptions can be created by inheriting from the Exception class.",
-            "Using else after try-except allows code to run if no exceptions are raised.",
-            "Raise keyword is used to trigger exceptions manually."
+            "example/graph.png", 4, 2
         ],
-        "media": "text"
+        "media": "image"
     },
     {
-        "topic": "Data Structures in Python",
+        "topic": "Images",
         "content": [
-            "Lists are mutable collections of items, defined using square brackets.",
-            "Tuples are immutable sequences, useful for fixed data.",
-            "Dictionaries store key-value pairs and are defined using curly braces.",
-            "Sets are unordered collections of unique elements."
+            "example/proof.png", 4, 2
         ],
-        "media": "text"
+        "media": "image"
     },
     {
-        "topic": "File Handling",
+        "topic": "Images",
         "content": [
-            "Open files using open(filename, mode) where mode can be 'r', 'w', or 'a'.",
-            "Use with statement for automatic file closing.",
-            "Read files using read(), readline(), or readlines() methods.",
-            "Write data using write() or writelines() for multiple lines."
+            "example/rules.png", 4, 2
         ],
-        "media": "text"
+        "media": "image"
     },
-    {
-        "topic": "Web Development with Flask",
-        "content": [
-            "Flask is a micro web framework for Python, used to create web apps.",
-            "Routes define the URL structure and are created using the @app.route decorator.",
-            "Templates are used to render dynamic HTML using Jinja2.",
-            "Flask can connect to databases like SQLite, PostgreSQL, and MySQL."
-        ],
-        "media": "text"
-    },
-    {
-        "topic": "Testing in Python",
-        "content": [
-            "Unit tests are created using the unittest library for testing functions.",
-            "pytest is a popular testing framework for more complex testing needs.",
-            "Mocks are used to replace parts of the system under test.",
-            "Coverage.py is used to measure code coverage during testing."
-        ],
-        "media": "text"
-    },
-    {
-        "topic": "Python Packaging",
-        "content": [
-            "Use setup.py to define package metadata and dependencies.",
-            "Virtual environments help isolate project dependencies.",
-            "pip is the default package manager used for installing libraries.",
-            "Publishing packages to PyPI can be done using twine."
-        ],
-        "media": "text"
-    }
 ]
+with open('example/neil_cheatsheet.txt', 'r', encoding='utf-8') as f:
+    data = {'media': 'text', 'content': []}
+    for line in f.readlines():
+        if not line.strip():
+            data_dict.append(data)
+            data = {'media': 'text', 'content': []}
+        elif 'topic' not in data:
+            data['topic'] = line
+        else:
+            data['content'].append(line)
 
 create_pdf(data_dict, "test.pdf")
