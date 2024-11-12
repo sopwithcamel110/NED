@@ -49,7 +49,7 @@ def get_dimensions(c: canvas.Canvas, content: ContentType, font_size: int,) -> T
             bullet_points = wrap_string_list(content['content'])
             content['wrapped_content'] = bullet_points # Update content for future use
 
-            topic_width = max(c.stringWidth(s, "Topic-Font", font_size) for s in [topic] + bullet_points) 
+            topic_width = max([c.stringWidth(topic, "Topic-Font", font_size)] + [c.stringWidth(s, "Bullet-Font", font_size) for s in bullet_points]) 
             topic_height = font_size * (len(bullet_points)+1) # +1 for topic
             return topic_width, topic_height
         case MediaType.IMAGE:
@@ -127,7 +127,7 @@ def create_pdf(data_dict: List[ContentType], file: BufferedWriter) -> None:
             total_height += msf_height
             msf_height = 0
             current_y = page_height-top_margin-total_height  # Move down to the next line
-        elif current_y - (topic_height*font_size) <= 0:
+        elif current_y - topic_height <= 0:
             # Topic goes off bottom of page, create a new one
             c.showPage()
             total_height = msf_height = 0
@@ -139,7 +139,7 @@ def create_pdf(data_dict: List[ContentType], file: BufferedWriter) -> None:
         place_content(c, content, current_x, current_y, font_size)
 
         # Check for page overflow
-        current_x += topic_width  # Update x position after the topic
+        current_x += topic_width + 2  # Update x position after the topic, add 2 for some space between topics
 
     # Save the PDF
     c.save()
