@@ -157,7 +157,8 @@ def create_cheatsheet_pdf(data_dict: List[ContentType]) -> str:
 
     return file_path
 
-data_dict = [
+data_dict = []
+images = [
     {
         "topic": "Images",
         "content": [
@@ -197,5 +198,8 @@ with open('example/neil_cheatsheet.txt', 'r', encoding='utf-8') as f:
             data['topic'] = line
         else:
             data['content'].append(line)
+
+for i, v in enumerate(images):
+    data_dict.insert(3 + 2*i, v)
 
 create_pdf(data_dict, "test.pdf")
