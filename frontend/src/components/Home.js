@@ -1,4 +1,4 @@
-import React, { useState, useRef} from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
@@ -12,22 +12,59 @@ import NotInterestedIcon from '@mui/icons-material/NotInterested';
 import CodeIcon from '@mui/icons-material/Code';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import { TextField, IconButton, Button, Toolbar, Tooltip } from '@mui/material';
-import { Menu, MenuItem} from '@mui/material';
+import { Menu, MenuItem } from '@mui/material';
 import Grid from '@mui/material/Grid2';
 import './Home.css';
 
+const API_BASE_URL = "http://localhost:5000"; // Replace with your actual backend URL
+
 const Home = () => {
-    const [topics, setTopics] = useState(() => {
-        const savedTopics = localStorage.getItem('topics');
-        return savedTopics ? JSON.parse(savedTopics) : [{ topic: '', textSegments: [''] }];
-    });
+    const [topics, setTopics] = useState([]);
     const [anchorEl, setAnchorEl] = useState(null); // For symbol menu
     const contentRef = useRef(null);
     const navigate = useNavigate();
 
     const updateTopics = (newTopics) => {
         setTopics(newTopics);
-        localStorage.setItem('topics', JSON.stringify(newTopics));
+    };
+
+    // Save a new topic to the backend
+    const saveTopics = async (newTopics) => {
+        try {
+          const response = await fetch(API_BASE_URL + "/createpdf", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify(newTopics),
+          });
+      
+          if (!response.ok) {
+            throw new Error(`Error: ${response.status}`);
+          }
+          console.log("Topics saved successfully");
+        } catch (error) {
+          console.error("Error saving topics:", error);
+        }
+      };
+      
+      const collectAndSaveTopics = () => {
+        const topicData = topics.map((topicObj) => ({
+          topic: topicObj.topic,
+          textSegments: topicObj.textSegments
+        }));
+      
+        saveTopics(topicData);
+      };
+
+    // Delete a topic from the backend
+    const deleteTopic = async (topicId) => {
+        try {
+            await fetch(`${API_BASE_URL}/${topicId}`, { method: 'DELETE' });
+            console.log("Topic deleted successfully");
+        } catch (error) {
+            console.error("Error deleting topic:", error);
+        }
     };
 
     const handleTopicChange = (index, value) => {
@@ -42,13 +79,9 @@ const Home = () => {
         updateTopics(newTopics);
     };
 
-    const deleteTopic = (topicIndex) => {
-        const newTopics = topics.filter((_, index) => index !== topicIndex);
-        updateTopics(newTopics);
-    };
-
     const addNewTopic = () => {
-        updateTopics([...topics, { topic: '', textSegments: [''] }]);
+        const newTopic = { topic: '', textSegments: [''] };
+        saveTopic(newTopic);
     };
 
     const onDragEnd = (result) => {
@@ -61,19 +94,29 @@ const Home = () => {
     };
 
     const handleNext = () => {
-        const allValid = topics.every(topic => topic.topic.trim() !== '' && topic.textSegments.some(segment => segment.trim() !== ''));
+        // Make sure topics are valid before saving
+        const allValid = topics.every(
+          (topic) => topic.topic.trim() !== '' && topic.textSegments.some((segment) => segment.trim() !== '')
+        );
+        
         if (!allValid) {
-            alert('Please ensure all topics have titles and at least one text segment.');
-            return;
+          alert('Please ensure all topics have titles and at least one text segment.');
+          return;
         }
+      
+        collectAndSaveTopics();
         navigate('/preview', { state: { topics } });
-    };
+      };
 
-    const scrollToContent = () => {
+    const scrollToContent = async() => {
         document.getElementById('content-section').scrollIntoView({ behavior: 'smooth', block: 'center' });
+        const response = await fetch(API_BASE_URL + "/ping", {
+            method: "GET",
+            headers: { "Content-Type": "application/json" }
+        });
+        console.log(response)
     };
 
-    // Handle text formatting
     const applyFormatting = (type, topicIndex, textIndex) => {
         const updatedTopics = [...topics];
         let text = updatedTopics[topicIndex].textSegments[textIndex];
@@ -87,9 +130,9 @@ const Home = () => {
         }
 
         updatedTopics[topicIndex].textSegments[textIndex] = text;
-        updatedTopics(updatedTopics);
+        updateTopics(updatedTopics);
     };
-    // Symbol dropdown handling
+
     const symbols = ['★', '✔', '♛', '♪', '☀', '♥', '☺', '✈'];
     const handleSymbolClick = (event) => setAnchorEl(event.currentTarget);
     const handleSymbolSelect = (symbol, topicIndex, textIndex) => {
