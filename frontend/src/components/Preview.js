@@ -1,13 +1,33 @@
 import React from 'react';
-import { useLocation } from 'react-router-dom';
+import { Button, IconButton } from '@mui/material';
+import DownloadIcon from '@mui/icons-material/Download';
+import CompressIcon from '@mui/icons-material/Compress';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 const Preview = () => {
   const location = useLocation();
   const { topics } = location.state || { topics: [] };
+  const navigate = useNavigate();
+
+  const handleBack = () => {
+      navigate(-1);
+  };
 
   return (
     <div style={{ textAlign: 'center', marginTop: '5%' }}>
-      <h1>Preview of Your Topics and Texts</h1>
+      <h1>Preview of Your Sheet</h1>
+      <div style={{ display: 'flex', justifyContent: 'center', gap: '10px', marginBottom: '20px' }}>
+                 <IconButton onClick={handleBack} aria-label="back">
+                    <ArrowBackIcon fontSize="large" />
+                </IconButton>
+                <Button variant="outlined" startIcon={<CompressIcon />}>
+                    Compress
+                </Button>
+                <Button variant="contained" startIcon={<DownloadIcon />}>
+                    Download
+                </Button>
+            </div>
       <div
         style={{
           width: 'calc(21cm / 1.5)',
@@ -40,4 +60,4 @@ const Preview = () => {
   );
 };
 
-export default Preview; // Ensure this line exists
+export default Preview;

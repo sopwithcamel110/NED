@@ -11,8 +11,12 @@
     justify-content: center;
     align-items: center;
     height: 100vh;
-    background-color: #fff9e6;
+    /* background-color: #fff9e6; */
     text-align: center;
+    /* test image as background? */
+    background-image: url('ExamNoteSheetEditor.png');
+    background-position: top 10px center; 
+    background-repeat: no-repeat;
 }
 
 .welcome-section h1 {
@@ -24,6 +28,16 @@
 .arrow-icon {
     font-size: 3em;
     animation: bounce 1.5s infinite;
+    background-color: #333333; /* Dark Gray Circle */
+    color: #fff; /* White Arrow */
+    padding: 15px;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+.arrow-icon:hover {
+    background-color: #555555; /* Slightly lighter gray when hovered */
 }
 
 @keyframes bounce {
@@ -43,12 +57,17 @@ h2 {
 }
 
 .topic-container {
-    border: 1px solid #ddd;
+    
+    border: 2px solid #333;
     border-radius: 8px;
     padding: 20px;
     margin-bottom: 20px;
     background-color: #f9f9f9;
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+.delete-icon-button:hover {
+    color: white; /* Change icon color to white when hovered */
 }
 
 .topic-row {
@@ -57,8 +76,12 @@ h2 {
     gap: 10px;
 }
 
-.toolbar button {
-    margin-right: 5px;
+.toolbar .MuiIconButton-root {
+    transition: background-color 0.3s ease;
+}
+
+.toolbar .MuiIconButton-root:hover {
+    background-color: #d3d3d3;
 }
 
 .text-box-container {
@@ -89,7 +112,7 @@ h2 {
 
 .footer-buttons2 {
     display: flex;
-    justify-content: flex-start;
+    justify-content: center;
     gap: 10px;
     margin-top: 20px;
 }
