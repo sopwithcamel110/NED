@@ -3,7 +3,7 @@ from io import BufferedWriter
 import os
 import random
 import tempfile
-import textwrap
+import wordwrap
 
 from PIL import Image 
 from typing import Any, Dict, List, Tuple
@@ -24,13 +24,29 @@ class MediaType(Enum):
     TEXT = "text"
     IMAGE = "image"
 
-def wrap_string_list(strs: List[str]) -> List[str]:
-    res = []
-    for s in strs:
-        res.extend(textwrap.wrap(s))
-    return res
+A = []
+def wrap_string_list(c: canvas.Canvas, font: str, font_size: int, strs: List[str]) -> List[str]:
+    if not strs:
+        return []
+    
+    DEBUG = -1
+    min_size = float('inf')
+    min_res = []
+    
+    max_str_len = int(max(c.stringWidth(s, font, font_size) for s in strs))
+    for width in range(max_str_len//2, max_str_len+1):
+        res = []
+        for s in strs:
+            res.extend(wordwrap.wrap(s, c, font, font_size, width))
+        size = max(c.stringWidth(s, font, font_size) for s in res) * len(res)
+        if size < min_size:
+            min_size = size
+            min_res = res
+            DEBUG = width
+    A.append((max_str_len, DEBUG, DEBUG/max_str_len))
+    return min_res
 
-def get_dimensions(c: canvas.Canvas, content: ContentType, font_size: int,) -> Tuple[float, float]:
+def get_dimensions(c: canvas.Canvas, content: ContentType, font_size: int) -> Tuple[float, float]:
     """
     Calculate the width and height of the given content, considering text wrapping.
     Parameters:
@@ -46,7 +62,7 @@ def get_dimensions(c: canvas.Canvas, content: ContentType, font_size: int,) -> T
     match MediaType(content['media']):
         case MediaType.TEXT:
             topic = content['topic']
-            bullet_points = wrap_string_list(content['content'])
+            bullet_points = wrap_string_list(c, 'Bullet-Font', font_size, content['content'])
             content['wrapped_content'] = bullet_points # Update content for future use
 
             topic_width = max([c.stringWidth(topic, "Topic-Font", font_size)] + [c.stringWidth(s, "Bullet-Font", font_size) for s in bullet_points]) 
@@ -142,6 +158,7 @@ def create_pdf(data_dict: List[ContentType], file: BufferedWriter) -> None:
         current_x += topic_width + 2  # Update x position after the topic, add 2 for some space between topics
 
     # Save the PDF
+    print(sorted(A, key=lambda x: x[0]))
     c.save()
 
 def create_cheatsheet_pdf(data_dict: List[ContentType]) -> str:
