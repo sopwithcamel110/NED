@@ -4,3 +4,4 @@ Flask-RESTful==0.3.10
 Flask-Session==0.8.0
 waitress==3.0.0
 reportlab==4.2.5
+rectpack
