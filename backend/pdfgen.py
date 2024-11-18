@@ -107,6 +107,7 @@ def place_content(
             topic = content['topic']
             bullet_points = content['wrapped_content']
 
+            y -= font_size
             # Draw the topic in bold
             c.setFont("Topic-Font", font_size)
             c.drawString(x, y, topic)
