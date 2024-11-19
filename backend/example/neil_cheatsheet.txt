@@ -1,5 +1,5 @@
 Asymptotic Bounds Formal Definition
-o(g(n)) = { f(n) |∀c > 0, ∃𝑛0 > 0, ∀n ≥ 𝑛0 : 0 ≤ f(n) < cg(n) }
+o(g(n)) = { f(n) |∀c > 0, ∃𝑛0 > 0, ∀n ≥ 𝑛0 : 0 ≤ f_{(n)} < cg(n) }
 𝑂(𝑔(𝑛)) = { 𝑓(𝑛) | ∃𝑐 > 0, ∃𝑛0 > 0, ∀𝑛 ≥ 𝑛0: 0 ≤ 𝑓(𝑛) ≤ 𝑐𝑔(𝑛) }
 Θ(𝑔(𝑛)) = { 𝑓(𝑛) | ∃𝑐1,𝑐2 > 0, ∃𝑛0 > 0, ∀𝑛 ≥ 𝑛0: 0 ≤ 𝑐1𝑔(𝑛) ≤ 𝑓(𝑛) ≤ 𝑐2𝑔(𝑛)
 Ω(𝑔(𝑛)) = { 𝑓(𝑛) | ∃𝑐 > 0, ∃𝑛0 > 0, ∀𝑛 ≥ 𝑛0 ∶ 0 ≤ 𝑐𝑔(𝑛) ≤ 𝑓(𝑛)
@@ -14,19 +14,19 @@ a<bd -> T(n)= 𝜃(nd)
 Logs
 log_a(x*y) = log_a(x) + log_a(y)
 log_a(x/y) = log_a(x) - log_a(y)
-log_a(x^y) = y * log_a(x)
-log_a(a^r) = r
+log_a(x^{y}) = y * log_a(x)
+log_a(a^{r}) = r
 log_a(a) = 1
 log_a(1) = 0
 log_a(1/b) = - log_a(b)
-log_b(x) = θ(log_a(x)) log_b(x) 
-              = θ(log_a(x))
-(a^(b^n)) ≠ (a^b)^n
-(x^y)^z = x^(y*z)
+log_b(x) = θ(log_{a}(x)) log_{b}(x) 
+              = θ(log_{a}(x))
+(a^(b^n)) ≠ (a^{b})^n
+(x^y)^z = x^{(y*z)}
 a^(log_a(b)) = b
-a^(log_b(n)) = n^(log_b(a))
-log_b(a) = log_x(a)/log_x(b)
-log_b(n)=x -> b^x = n
+a^(log_b(n)) = n^{(log_b(a))}
+log_b(a) = log_{x}(a)/log_{x}(b)
+log_b(n)=x -> b^{x} = n
 
 Union find
 Union-Find data structure, also called a Disjoint-Set data structure Used for storing collections of sets Supports:
