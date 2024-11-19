@@ -7,12 +7,14 @@ import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import PlusIcon from '@mui/icons-material/Add';
 import FormatListNumberedIcon from '@mui/icons-material/FormatListNumbered';
 import FormatListBulletedIcon from '@mui/icons-material/FormatListBulleted';
-import EmojiSymbolsIcon from '@mui/icons-material/EmojiSymbols';
+import SuperscriptIcon from '@mui/icons-material/Superscript';
+import SubscriptIcon from '@mui/icons-material/Subscript';
+// import EmojiSymbolsIcon from '@mui/icons-material/EmojiSymbols';
 import NotInterestedIcon from '@mui/icons-material/NotInterested';
 import CodeIcon from '@mui/icons-material/Code';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
-import { TextField, IconButton, Button, Toolbar, Tooltip } from '@mui/material';
-import { Menu, MenuItem} from '@mui/material';
+import { TextField, IconButton, Button, Toolbar, Tooltip, Menu, MenuItem } from '@mui/material';
+import FunctionsIcon from '@mui/icons-material/Functions';
 import Grid from '@mui/material/Grid2';
 import './Home.css';
 
@@ -21,9 +23,12 @@ const Home = () => {
         const savedTopics = localStorage.getItem('topics');
         return savedTopics ? JSON.parse(savedTopics) : [{ topic: '', textSegments: [''] }];
     });
-    const [anchorEl, setAnchorEl] = useState(null); // For symbol menu
-    const contentRef = useRef(null);
     const navigate = useNavigate();
+
+    //math symbols
+    const [symbolMenuAnchorEl, setSymbolMenuAnchorEl] = useState(null); 
+    const [selectedTopicIndex, setSelectedTopicIndex] = useState(null);
+    const [selectedTextIndex, setSelectedTextIndex] = useState(null); 
 
     const updateTopics = (newTopics) => {
         setTopics(newTopics);
@@ -73,32 +78,41 @@ const Home = () => {
         document.getElementById('content-section').scrollIntoView({ behavior: 'smooth', block: 'center' });
     };
 
-    // Handle text formatting
-    const applyFormatting = (type, topicIndex, textIndex) => {
-        const updatedTopics = [...topics];
-        let text = updatedTopics[topicIndex].textSegments[textIndex];
-
-        if (type === 'numbered') {
-            text = text.split('\n').map((line, i) => `${i + 1}. ${line}`).join('\n');
-        } else if (type === 'bulleted') {
-            text = text.split('\n').map(line => `• ${line}`).join('\n');
-        } else if (type === 'code') {
-            text = `\`\`\`\n${text}\n\`\`\``;
-        }
-
-        updatedTopics[topicIndex].textSegments[textIndex] = text;
-        updatedTopics(updatedTopics);
-    };
-    // Symbol dropdown handling
-    const symbols = ['★', '✔', '♛', '♪', '☀', '♥', '☺', '✈'];
-    const handleSymbolClick = (event) => setAnchorEl(event.currentTarget);
-    const handleSymbolSelect = (symbol, topicIndex, textIndex) => {
+    
+    const insertExponent = (topicIndex, textIndex) => { //exponent button
         const updatedTopics = [...topics];
         const currentText = updatedTopics[topicIndex].textSegments[textIndex];
-        updatedTopics[topicIndex].textSegments[textIndex] = currentText + symbol;
-        setTopics(updatedTopics);
-        setAnchorEl(null);
+        updatedTopics[topicIndex].textSegments[textIndex] = currentText + '^{}';
+        updateTopics(updatedTopics);
     };
+
+
+    const insertSubscript = (topicIndex, textIndex) => {  //subscript Button
+        const updatedTopics = [...topics];
+        const currentText = updatedTopics[topicIndex].textSegments[textIndex];
+        updatedTopics[topicIndex].textSegments[textIndex] = currentText + '_{}';
+        updateTopics(updatedTopics);
+    };
+
+    //math symbol dropdown menu
+    const handleSymbolMenuOpen = (event, topicIndex, textIndex) => {
+        setSymbolMenuAnchorEl(event.currentTarget);
+        setSelectedTopicIndex(topicIndex);
+        setSelectedTextIndex(textIndex);
+    };
+    
+    const handleSymbolMenuClose = () => {
+        setSymbolMenuAnchorEl(null);
+    };
+    
+    const handleSymbolSelect = (symbol) => {
+        const updatedTopics = [...topics];
+        const currentText = updatedTopics[selectedTopicIndex].textSegments[selectedTextIndex];
+        updatedTopics[selectedTopicIndex].textSegments[selectedTextIndex] = currentText + symbol;
+        updateTopics(updatedTopics);
+        handleSymbolMenuClose();
+    };
+    
 
     return (
         <div className="home-container" >
@@ -159,17 +173,22 @@ const Home = () => {
                                                             <NotInterestedIcon />
                                                         </IconButton>
                                                     </Tooltip>
+                                                    <Tooltip title="Exponent" arrow>
+                                                        <IconButton onClick={() => insertExponent(topicIndex, 0)}>
+                                                            <SuperscriptIcon/>
+                                                        </IconButton>
+                                                    </Tooltip>
+                                                    <Tooltip title="Subscript" arrow>
+                                                        <IconButton onClick={() => insertSubscript(topicIndex, 0)}>
+                                                            <SubscriptIcon/>
+                                                        </IconButton>
+                                                    </Tooltip>
 
-                                                    <IconButton onClick={handleSymbolClick}><EmojiSymbolsIcon /></IconButton>
-                                                        <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={() => setAnchorEl(null)}>
-                                                            <Grid container spacing={1} style={{ maxHeight: '200px', overflow: 'auto' }}>
-                                                                {symbols.map((symbol, index) => (
-                                                                    <Grid item xs={3} key={index}>
-                                                                        <MenuItem onClick={() => handleSymbolSelect(symbol, topicIndex, topicIndex)}>{symbol}</MenuItem>
-                                                                    </Grid>
-                                                                ))}
-                                                            </Grid>
-                                                        </Menu>
+                                                    <Tooltip title="Insert Symbol" arrow>
+                                                        <IconButton onClick={(e) => handleSymbolMenuOpen(e, topicIndex, 0)}>
+                                                            <FunctionsIcon />
+                                                        </IconButton>
+                                                    </Tooltip>
                                                 </Toolbar>
                                                 <Button
                                                     component="label"
@@ -188,20 +207,18 @@ const Home = () => {
 
                                             <div className="text-box-container">
                                                 {topicObj.textSegments.map((segment, textIndex) => (
-                                                    <div key={textIndex} className="text-box">
-                                                        <TextField
-                                                            id="outlined-multiline-static"
-                                                            label="Enter Text"
-                                                            multiline
-                                                            rows={12}
-                                                            value={segment}
-                                                            style={{ paddingBottom: '2px' }}
-                                                            onChange={(e) =>
-                                                                handleTextChange(topicIndex, textIndex, e.target.value)
-                                                            }
-                                                            className="consistent-textarea"
-                                                        />
-                                                    </div>
+                                                <div key={textIndex} className="text-box">
+                                                    <TextField
+                                                        id={`text-segment-${topicIndex}-${textIndex}`}
+                                                        label="Enter Text"
+                                                        multiline
+                                                        rows={12}
+                                                        value={segment}
+                                                        style={{ paddingBottom: '2px' }}
+                                                        onChange={(e) => handleTextChange(topicIndex, textIndex, e.target.value)}
+                                                        className="consistent-textarea"
+                                                    />
+                                                </div>
                                                 ))}
                                             </div>
                                             <div className="button-row" style={{ display: 'flex', justifyContent: 'flex-end' }}>
@@ -233,6 +250,50 @@ const Home = () => {
                     )}
                 </Droppable>
             </DragDropContext>
+                
+            <Menu
+                anchorEl={symbolMenuAnchorEl}
+                open={Boolean(symbolMenuAnchorEl)}
+                onClose={handleSymbolMenuClose}
+                PaperProps={{
+                    style: {
+                        maxHeight: '400px',
+                        overflowY: 'auto', 
+                        width: '500px',
+                    },
+                }}
+            >
+                <Grid
+                    container
+                    spacing={1}
+                    style={{ padding: '10px', display: 'flex', flexWrap: 'wrap' }}
+                >
+                    {[
+                        '∞', 'π', 'e', 'Σ', 'Ω', 'Δ', '∑', '√', '±', '∩',
+                        '∪', '∈', '∉', '⊂', '⊃', '⊆', '⊇', '∃', '∀', '∧',
+                        '∨', '⇒', '⇔', '∇', '∂', '⊥', '⊤', '≠', '≈', '≡',
+                        '≪', '≫', '∝', '∼', '≈', '∫', '∮', '∅', '∴', '⊕',
+                        '⊗', '⊘', '⊔', '⊓', '∧', '∨', '∼', '⊂', '⊃', '⋅',
+                        '⊔', '⊓', 'ℵ', 'ℝ', 'ℕ', 'ℤ', 'ℚ', 'ℂ', 'ℍ', '↔',
+                        '←', '→', '∘', 
+                    ].map(function(symbol, index) {
+                        return (
+                            <Grid item xs={2} sm={1} md={1} key={index}>
+                                <MenuItem
+                                    onClick={function() { handleSymbolSelect(symbol); }}
+                                    style={{
+                                        display: 'flex',
+                                        justifyContent: 'center',
+                                        padding: '5px 10px',
+                                    }}
+                                >
+                                    {symbol}
+                                </MenuItem>
+                            </Grid>
+                        );
+                    })}
+                </Grid>
+            </Menu>
 
             <div className="footer-buttons2">
                 <Button 
@@ -257,7 +318,6 @@ const Home = () => {
                     <PlusIcon style={{ backgroundColor: 'transparent' }} />
                 </Button>
             </div>
-
 
             <div className="footer-buttons">
                 <IconButton onClick={handleNext} aria-label="next">
