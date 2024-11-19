@@ -3,6 +3,7 @@ from io import BufferedWriter
 import os
 import random
 import tempfile
+import re
 
 from PIL import Image 
 from typing import Any, Dict, List, Tuple
@@ -28,6 +29,49 @@ class MediaType(Enum):
     TEXT = "text"
     IMAGE = "image"
 
+PATTERN = re.compile(r"([^\^_]+)|(\^)\{([^\}]+)\}|(_)\{([^\}]+)\}")
+
+def parse_style(input_list: List[str]) -> List[List[Tuple[str, str]]]:
+    """
+    Parse a string for superscripts (^{}) and subscripts (_{}).
+    Returns a list of lists of tuples (text, style), where style can be 'normal', 'superscript', or 'subscript'.
+    """
+    results = []
+
+    for s in input_list:
+        parts = []
+        matches = PATTERN.finditer(s)
+
+        for match in matches:
+            if match.group(1):  # Normal text
+                parts.append((match.group(1), "normal"))
+            elif match.group(2):  # Superscript
+                parts.append((match.group(3), "superscript"))
+            elif match.group(4):  # Subscript
+                parts.append((match.group(5), "subscript"))
+
+        results.append(parts)
+
+    return results
+
+def render_parsed_text(c, x, y, parsed_text, font, font_size):
+    """
+    Render parsed text with LaTeX-style superscripts and subscripts on a ReportLab canvas.
+    """
+    for text, style in parsed_text:
+        if style == "normal":
+            c.setFont(font, font_size)
+            c.drawString(x, y, text)
+            x += c.stringWidth(text, font, font_size)
+        elif style == "superscript":
+            c.setFont(font, font_size * 0.7)  # Smaller font for superscript
+            c.drawString(x, y + font_size * 0.3, text)  # Raise superscript
+            x += c.stringWidth(text, font, font_size * 0.7)
+        elif style == "subscript":
+            c.setFont(font, font_size * 0.7)  # Smaller font for subscript
+            c.drawString(x, y - font_size * 0.3, text)  # Lower subscript
+            x += c.stringWidth(text, font, font_size * 0.7)
+
 def wrap_string_list(c: canvas.Canvas, font: str, font_size: int, strs: List[str]) -> List[str]:
     """Word-wrap strs to maximize space efficiency, and return the word-wrapped list."""
     if not strs:
@@ -37,6 +81,7 @@ def wrap_string_list(c: canvas.Canvas, font: str, font_size: int, strs: List[str
     min_res = []
     
     max_str_len = int(max(c.stringWidth(s, font, font_size) for s in strs))
+
     for width in range(max_str_len//2, max_str_len+1):
         res = []
         for s in strs:
@@ -46,7 +91,7 @@ def wrap_string_list(c: canvas.Canvas, font: str, font_size: int, strs: List[str
         if size < min_size:
             min_size = size
             min_res = res
-
+    #print(min_res)
     return min_res
 
 def get_dimensions(c: canvas.Canvas, content: ContentType, font_size: int) -> Tuple[float, float]:
@@ -67,6 +112,9 @@ def get_dimensions(c: canvas.Canvas, content: ContentType, font_size: int) -> Tu
             topic = content['topic']
             bullet_points = wrap_string_list(c, 'Bullet-Font', font_size, content['content'])
             content['wrapped_content'] = bullet_points # Update content for future use
+            content['parsed_content'] = parse_style(s for s in content['wrapped_content'])
+            #print(content['wrapped_content'])
+            #print(content['parsed_content'])
 
             topic_width = max([c.stringWidth(topic, "Topic-Font", font_size)] + [c.stringWidth(s, "Bullet-Font", font_size) for s in bullet_points]) 
             topic_height = font_size * (len(bullet_points)+1) # +1 for topic
@@ -105,7 +153,8 @@ def place_content(
     match MediaType(content['media']):
         case MediaType.TEXT:
             topic = content['topic']
-            bullet_points = content['wrapped_content']
+            #bullet_points = content['wrapped_content']
+            bullet_points = content['parsed_content']
 
             y -= font_size
             # Draw the topic in bold
@@ -115,7 +164,8 @@ def place_content(
             c.setFont("Bullet-Font", font_size)  # Smaller font size to fit more text
             for i, bullet in enumerate(bullet_points):
                 # Draw bullet point
-                c.drawString(x, y-((i+1)*font_size), bullet)
+                render_parsed_text(c, x, y-((i+1)*font_size), bullet, "Bullet-Font", font_size)
+                #c.drawString(x, y-((i+1)*font_size), bullet)
 
         case MediaType.IMAGE:
             image_path = content['content'][0]
