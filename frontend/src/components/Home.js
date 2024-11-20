@@ -109,6 +109,13 @@ const Home = () => {
         updateTopics(updatedTopics);
     };
 
+    const insertNoWrap = (topicIndex, textIndex) => {  //no txt wrap
+        const updatedTopics = [...topics];
+        const currentText = updatedTopics[topicIndex].textSegments[textIndex];
+        updatedTopics[topicIndex].textSegments[textIndex] = currentText + '///';
+        updateTopics(updatedTopics);
+    };
+
     //math symbol dropdown menu
     const handleSymbolMenuOpen = (event, topicIndex, textIndex) => {
         setSymbolMenuAnchorEl(event.currentTarget);
@@ -184,7 +191,7 @@ const Home = () => {
                                                         </IconButton>
                                                     </Tooltip>
                                                     <Tooltip title="No Text Wrap" arrow>
-                                                        <IconButton>
+                                                        <IconButton onClick={() => insertNoWrap(topicIndex, 0)}>
                                                             <NotInterestedIcon />
                                                         </IconButton>
                                                     </Tooltip>
