@@ -9,6 +9,7 @@ import FormatListNumberedIcon from '@mui/icons-material/FormatListNumbered';
 import FormatListBulletedIcon from '@mui/icons-material/FormatListBulleted';
 import SuperscriptIcon from '@mui/icons-material/Superscript';
 import SubscriptIcon from '@mui/icons-material/Subscript';
+import QuestionMarkIcon from '@mui/icons-material/QuestionMark';
 // import EmojiSymbolsIcon from '@mui/icons-material/EmojiSymbols';
 import NotInterestedIcon from '@mui/icons-material/NotInterested';
 import CodeIcon from '@mui/icons-material/Code';
@@ -91,6 +92,20 @@ const Home = () => {
         const updatedTopics = [...topics];
         const currentText = updatedTopics[topicIndex].textSegments[textIndex];
         updatedTopics[topicIndex].textSegments[textIndex] = currentText + '_{}';
+        updateTopics(updatedTopics);
+    };
+
+    const insertFraction = (topicIndex, textIndex) => {  //Fraction
+        const updatedTopics = [...topics];
+        const currentText = updatedTopics[topicIndex].textSegments[textIndex];
+        updatedTopics[topicIndex].textSegments[textIndex] = currentText + '{}/{}';
+        updateTopics(updatedTopics);
+    };
+
+    const insertSQRT = (topicIndex, textIndex) => {  //Square root bttn
+        const updatedTopics = [...topics];
+        const currentText = updatedTopics[topicIndex].textSegments[textIndex];
+        updatedTopics[topicIndex].textSegments[textIndex] = currentText + '√{}';
         updateTopics(updatedTopics);
     };
 
@@ -181,6 +196,17 @@ const Home = () => {
                                                     <Tooltip title="Subscript" arrow>
                                                         <IconButton onClick={() => insertSubscript(topicIndex, 0)}>
                                                             <SubscriptIcon/>
+                                                        </IconButton>
+                                                    </Tooltip>
+
+                                                    <Tooltip title="Fraction" arrow>
+                                                        <IconButton onClick={() => insertFraction(topicIndex, 0)}>
+                                                            <QuestionMarkIcon/>
+                                                        </IconButton>
+                                                    </Tooltip>
+                                                    <Tooltip title="Square Root" arrow>
+                                                        <IconButton onClick={() => insertSQRT(topicIndex, 0)}>
+                                                            <QuestionMarkIcon/>
                                                         </IconButton>
                                                     </Tooltip>
 
