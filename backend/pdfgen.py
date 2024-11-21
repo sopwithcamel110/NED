@@ -16,7 +16,7 @@ from reportlab.pdfbase import pdfmetrics
 
 import wordwrap
 
-pdfmetrics.registerFont(TTFont('Bullet-Font', 'fonts/Notosans-Regular.ttf'))
+pdfmetrics.registerFont(TTFont('Bullet-Font', 'fonts/NotoSans-Regular.ttf'))
 pdfmetrics.registerFont(TTFont('Topic-Font', 'fonts/NotoSans-Bold.ttf'))
 
 ContentType = Dict[str, Any]
@@ -134,6 +134,8 @@ def create_pdf(data_dict: List[ContentType], file: BufferedWriter) -> None:
 
     total_height = 0
     msf_height = 0 # max-so-far height
+
+    print("Creating cheatsheet...")
     for content in data_dict:
         topic_width, topic_height = get_dimensions(c, content, font_size)
 
@@ -171,51 +173,53 @@ def create_cheatsheet_pdf(data_dict: List[ContentType]) -> str:
     with open(file_path, 'wb') as temp_file:
         create_pdf(data_dict, temp_file)
 
+    print("PDF created at path: ", file_path)
     return file_path
 
-data_dict = []
-images = [
-    {
-        "topic": "Images",
-        "content": [
-            "example/dag.png", 4, 2
-        ],
-        "media": "image"
-    },
-    {
-        "topic": "Images",
-        "content": [
-            "example/graph.png", 4, 2
-        ],
-        "media": "image"
-    },
-    {
-        "topic": "Images",
-        "content": [
-            "example/proof.png", 4, 2
-        ],
-        "media": "image"
-    },
-    {
-        "topic": "Images",
-        "content": [
-            "example/rules.png", 4, 2
-        ],
-        "media": "image"
-    },
-]
-with open('example/neil_cheatsheet.txt', 'r', encoding='utf-8') as f:
-    data = {'media': 'text', 'content': []}
-    for line in f.readlines():
-        if not line.strip():
-            data_dict.append(data)
-            data = {'media': 'text', 'content': []}
-        elif 'topic' not in data:
-            data['topic'] = line
-        else:
-            data['content'].append(line)
+if __name__ == "__main__":
+    data_dict = []
+    images = [
+        {
+            "topic": "Images",
+            "content": [
+                "example/dag.png", 4, 2
+            ],
+            "media": "image"
+        },
+        {
+            "topic": "Images",
+            "content": [
+                "example/graph.png", 4, 2
+            ],
+            "media": "image"
+        },
+        {
+            "topic": "Images",
+            "content": [
+                "example/proof.png", 4, 2
+            ],
+            "media": "image"
+        },
+        {
+            "topic": "Images",
+            "content": [
+                "example/rules.png", 4, 2
+            ],
+            "media": "image"
+        },
+    ]
+    with open('example/neil_cheatsheet.txt', 'r', encoding='utf-8') as f:
+        data = {'media': 'text', 'content': []}
+        for line in f.readlines():
+            if not line.strip():
+                data_dict.append(data)
+                data = {'media': 'text', 'content': []}
+            elif 'topic' not in data:
+                data['topic'] = line
+            else:
+                data['content'].append(line)
 
-for i, v in enumerate(images):
-    data_dict.insert(3 + 2*i, v)
+    for i, v in enumerate(images):
+        data_dict.insert(3 + 2*i, v)
 
-create_pdf(data_dict, "test.pdf")
+    create_pdf(data_dict, "test.pdf")

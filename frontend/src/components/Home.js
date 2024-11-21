@@ -30,8 +30,9 @@ const Home = () => {
 
     // Save a new topic to the backend
     const saveTopics = async (newTopics) => {
+        console.log(newTopics)
         try {
-          const response = await fetch(API_BASE_URL + "/createpdf", {
+           var response = await fetch(API_BASE_URL + "/createpdf", {
             method: "POST",
             headers: {
               "Content-Type": "application/json"
@@ -43,18 +44,21 @@ const Home = () => {
             throw new Error(`Error: ${response.status}`);
           }
           console.log("Topics saved successfully");
+
         } catch (error) {
           console.error("Error saving topics:", error);
         }
+        return response;
       };
       
-      const collectAndSaveTopics = () => {
+      const collectAndSaveTopics = async () => {
         const topicData = topics.map((topicObj) => ({
-          topic: topicObj.topic,
-          textSegments: topicObj.textSegments
+          'topic': topicObj.topic,
+          'content': topicObj.textSegments,
+          'media': 'text',
         }));
       
-        saveTopics(topicData);
+        return await saveTopics(topicData);
       };
 
     // Delete a topic from the backend
@@ -81,7 +85,7 @@ const Home = () => {
 
     const addNewTopic = () => {
         const newTopic = { topic: '', textSegments: [''] };
-        saveTopic(newTopic);
+        setTopics([...topics, newTopic]);
     };
 
     const onDragEnd = (result) => {
@@ -93,7 +97,7 @@ const Home = () => {
         updateTopics(reorderedTopics);
     };
 
-    const handleNext = () => {
+    const handleNext = async () => {
         // Make sure topics are valid before saving
         const allValid = topics.every(
           (topic) => topic.topic.trim() !== '' && topic.textSegments.some((segment) => segment.trim() !== '')
@@ -103,18 +107,25 @@ const Home = () => {
           alert('Please ensure all topics have titles and at least one text segment.');
           return;
         }
-      
-        collectAndSaveTopics();
+        
+        var res = await collectAndSaveTopics();
+        var resJson = await res.json()
+        console.log(resJson['location']);
+        var location = resJson['location']
         navigate('/preview', { state: { topics } });
       };
 
     const scrollToContent = async() => {
         document.getElementById('content-section').scrollIntoView({ behavior: 'smooth', block: 'center' });
-        const response = await fetch(API_BASE_URL + "/ping", {
-            method: "GET",
-            headers: { "Content-Type": "application/json" }
-        });
-        console.log(response)
+        try {
+            await fetch(API_BASE_URL + "/ping", {
+                method: "GET",
+                headers: { "Content-Type": "application/json" }
+            });
+        }
+        catch {
+            console.log("API IS NOT RUNNING. RUN THE API IN THE BACKEND FOLDER BEFORE STARTING THIS APPLICATION.")
+        }
     };
 
     const applyFormatting = (type, topicIndex, textIndex) => {
