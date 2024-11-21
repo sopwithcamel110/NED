@@ -1,5 +1,6 @@
 from enum import Enum
 from io import BufferedWriter
+import io
 import os
 import random
 import tempfile
@@ -124,12 +125,13 @@ def place_content(
             image_height = content['content'][2]
             c.drawImage(image_path, x, y - image_height, width=image_width, height=image_height)
 
-def create_pdf(data_dict: List[ContentType], file: BufferedWriter) -> None:
+def create_pdf(data_dict: List[ContentType]) -> None:
     """
     Create a fully optimized cheatsheet from a list of topics. Utilizes formatting and
     positioning to make efficient use of white space.
     """
-    c = canvas.Canvas(file, pagesize=A4)
+    pdf_buffer = io.BytesIO()
+    c = canvas.Canvas(pdf_buffer, pagesize=A4)
     page_width, page_height = A4
     font_size = 5
     
@@ -162,19 +164,14 @@ def create_pdf(data_dict: List[ContentType], file: BufferedWriter) -> None:
     # Save the PDF
     c.save()
 
+    pdf_buffer.seek(0)
+    return pdf_buffer
+
 def create_cheatsheet_pdf(data_dict: List[ContentType]) -> str:
     """
     Create a cheatsheet on the filesystem from the given list of topics. Returns the path of the created cheatsheet.
     """
-    temp_dir = tempfile.mkdtemp()
-    file_path = os.path.join(temp_dir, 'cheatsheet.pdf')
-
-    # Create a file in the temp directory
-    with open(file_path, 'wb') as temp_file:
-        create_pdf(data_dict, temp_file)
-
-    print("PDF created at path: ", file_path)
-    return file_path
+    return create_pdf(data_dict)
 
 if __name__ == "__main__":
     data_dict = []
@@ -222,4 +219,5 @@ if __name__ == "__main__":
     for i, v in enumerate(images):
         data_dict.insert(3 + 2*i, v)
 
-    create_pdf(data_dict, "test.pdf")
+    with open("cheatsheet.pdf", "wb") as f:
+        f.write(create_pdf(data_dict).read())

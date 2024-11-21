@@ -3,11 +3,13 @@ import { Button, IconButton } from '@mui/material';
 import DownloadIcon from '@mui/icons-material/Download';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import CompressIcon from '@mui/icons-material/Compress';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 const Preview = () => {
   const navigate = useNavigate();
-  const pdfPath = `${process.env.PUBLIC_URL}/sample.pdf`; // Path to the PDF in the public folder
+  const location = useLocation();
+  const pdfPath = location.state?.pdfLocation;
+  console.log(pdfPath);
 
   const handleBack = () => {
     navigate(-1); // Go back to the previous page
@@ -16,7 +18,7 @@ const Preview = () => {
   const handleDownload = () => {
     const link = document.createElement('a');
     link.href = pdfPath; // Path to the PDF
-    link.download = 'sample.pdf'; // Default download name
+    link.download = 'sample.pdf'; 
     link.click();
   };
 
