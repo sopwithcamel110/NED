@@ -51,7 +51,7 @@ const Home = () => {
       const collectAndSaveTopics = async () => {
         const topicData = topics.map((topicObj) => ({
           'topic': topicObj.topic,
-          'content': topicObj.textSegments,
+          'content': topicObj.textSegments[0].split('\n'),
           'media': 'text',
         }));
       
