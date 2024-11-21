@@ -22,9 +22,8 @@ class Ping(Resource):
 class CreatePDF(Resource):
     def post(self):
         content = request.json
-        notes = content['notes']
-        location = create_cheatsheet_pdf(notes)
-        return jsonify({"location": location, "notes" : notes})
+        location = create_cheatsheet_pdf(content)
+        return jsonify({"location": location, "notes" : content})
 
     
 api.add_resource(Ping, "/ping")
