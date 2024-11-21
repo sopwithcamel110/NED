@@ -30,7 +30,6 @@ const Home = () => {
 
     // Save a new topic to the backend
     const saveTopics = async (newTopics) => {
-        console.log(newTopics)
         try {
            var response = await fetch(API_BASE_URL + "/createpdf", {
             method: "POST",
