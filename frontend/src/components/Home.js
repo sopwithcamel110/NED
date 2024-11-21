@@ -30,30 +30,28 @@ const Home = () => {
 
     // Save a new topic to the backend
     const saveTopics = async (newTopics) => {
-        try {
-           var response = await fetch(API_BASE_URL + "/createpdf", {
+        var response = await fetch(API_BASE_URL + "/createpdf", {
             method: "POST",
             headers: {
-              "Content-Type": "application/json"
+                "Content-Type": "application/json"
             },
             body: JSON.stringify(newTopics),
-          });
-      
-          if (!response.ok) {
-            throw new Error(`Error: ${response.status}`);
-          }
-          console.log("Topics saved successfully");
-
-        } catch (error) {
-          console.error("Error saving topics:", error);
+        });
+        
+        if (response.ok) {
+            const blob = await response.blob();
+            const url = URL.createObjectURL(blob); // Convert Blob to an Object URL
+            return url;
+        } else {
+            console.error("Failed to generate PDF");
+            return "";
         }
-        return response;
       };
       
       const collectAndSaveTopics = async () => {
         const topicData = topics.map((topicObj) => ({
           'topic': topicObj.topic,
-          'content': topicObj.textSegments,
+          'content': topicObj.textSegments[0].split('\n'),
           'media': 'text',
         }));
       
@@ -107,11 +105,8 @@ const Home = () => {
           return;
         }
         
-        var res = await collectAndSaveTopics();
-        var resJson = await res.json()
-        console.log(resJson['location']);
-        var location = resJson['location']
-        navigate('/preview', { state: { topics } });
+        var location = await collectAndSaveTopics();
+        navigate('/preview', { state: { pdfLocation: location } });
       };
 
     const scrollToContent = async() => {
