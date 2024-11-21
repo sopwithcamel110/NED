@@ -19,6 +19,8 @@ from reportlab.pdfbase import pdfmetrics
 import wordwrap
 
 DEC_PRECISION = 6
+SCRIPT_SIZE_FONT = 0.7 # super/subscript font size
+Y_SCRIPT = 1 - SCRIPT_SIZE_FONT
 
 pdfmetrics.registerFont(TTFont('Bullet-Font', 'fonts/NotoSans-Regular.ttf'))
 pdfmetrics.registerFont(TTFont('Topic-Font', 'fonts/NotoSans-Bold.ttf'))
@@ -62,15 +64,34 @@ def render_parsed_text(c, x, y, parsed_text, font, font_size):
         if style == "normal":
             c.setFont(font, font_size)
             c.drawString(x, y, text)
-            x += c.stringWidth(text, font, font_size)
+            x += styleStringWidth(c, text, font, font_size)
         elif style == "superscript":
-            c.setFont(font, font_size * 0.7)  # Smaller font for superscript
-            c.drawString(x, y + font_size * 0.3, text)  # Raise superscript
-            x += c.stringWidth(text, font, font_size * 0.7)
+            c.setFont(font, font_size * SCRIPT_SIZE_FONT)  # Smaller font for superscript
+            c.drawString(x, y + font_size * Y_SCRIPT, text)  # Raise superscript
+            x += styleStringWidth(c, text, font, font_size * SCRIPT_SIZE_FONT)
         elif style == "subscript":
-            c.setFont(font, font_size * 0.7)  # Smaller font for subscript
-            c.drawString(x, y - font_size * 0.3, text)  # Lower subscript
-            x += c.stringWidth(text, font, font_size * 0.7)
+            c.setFont(font, font_size * SCRIPT_SIZE_FONT)  # Smaller font for subscript
+            c.drawString(x, y - font_size * Y_SCRIPT, text)  # Lower subscript
+            x += styleStringWidth(c, text, font, font_size * SCRIPT_SIZE_FONT)
+
+def styleStringWidth(c:canvas.Canvas, parsed_text: List[str], font: str, font_size: int) -> int:
+    """
+    wrapper for stringWidth function taking into account superscripts and subscript dimension changes.
+    """
+    width = 0
+    for text, style in parsed_text:
+        if style == "normal":
+            font_size = base_font_size
+        elif style in ["superscript", "subscript"]:
+            font_size = base_font_size * SCRIPT_SIZE_FONT  # Adjusted font size for superscripts and subscripts
+        else:
+            continue  # Skip unsupported styles (shouldn't occur with proper input)
+
+        # Add the width of the current segment
+        width += c.stringWidth(text, font, font_size)
+
+    return width
+
 
 def wrap_string_list(c: canvas.Canvas, font: str, font_size: int, strs: List[str]) -> List[str]:
     """Word-wrap strs to maximize space efficiency, and return the word-wrapped list."""
@@ -80,14 +101,14 @@ def wrap_string_list(c: canvas.Canvas, font: str, font_size: int, strs: List[str
     min_size = float('inf')
     min_res = []
     
-    max_str_len = int(max(c.stringWidth(s, font, font_size) for s in strs))
+    max_str_len = int(max(styleStringWidth(c, s, font, font_size) for s in strs))
 
     for width in range(max_str_len//2, max_str_len+1):
         res = []
         for s in strs:
             res.extend(wordwrap.wrap(s, c, font, font_size, width))
 
-        size = max(c.stringWidth(s, font, font_size) for s in res) * len(res)
+        size = max(styleStringWidth(c, s, font, font_size) for s in res) * len(res)
         if size < min_size:
             min_size = size
             min_res = res
@@ -114,9 +135,9 @@ def get_dimensions(c: canvas.Canvas, content: ContentType, font_size: int) -> Tu
             content['wrapped_content'] = bullet_points # Update content for future use
             content['parsed_content'] = parse_style(s for s in content['wrapped_content'])
             #print(content['wrapped_content'])
-            #print(content['parsed_content'])
+            print(content['parsed_content']) # use for debugging
 
-            topic_width = max([c.stringWidth(topic, "Topic-Font", font_size)] + [c.stringWidth(s, "Bullet-Font", font_size) for s in bullet_points]) 
+            topic_width = max([c.stringWidth(topic, "Topic-Font", font_size)] + [styleStringWidth(c, s, "Bullet-Font", font_size) for s in content['parsed_content']]) 
             topic_height = font_size * (len(bullet_points)+1) # +1 for topic
             return topic_width, topic_height
         case MediaType.IMAGE:
