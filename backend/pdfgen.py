@@ -6,7 +6,7 @@ import random
 import tempfile
 import re
 
-from PIL import Image 
+from PIL import Image
 from typing import Any, Dict, List, Tuple
 
 from rectpack import float2dec, newPacker, PackingMode
@@ -20,259 +20,289 @@ from reportlab.pdfbase import pdfmetrics
 import wordwrap
 
 DEC_PRECISION = 6
-SCRIPT_SIZE_FONT = 0.7 # super/subscript font size
+SCRIPT_SIZE_FONT = 0.7  # super/subscript font size
 Y_SCRIPT = 1 - SCRIPT_SIZE_FONT
 
-
+# Register fonts
 pdfmetrics.registerFont(TTFont('Bullet-Font', 'fonts/NotoSans-Regular.ttf'))
 pdfmetrics.registerFont(TTFont('Topic-Font', 'fonts/NotoSans-Bold.ttf'))
 
-ContentType = Dict[str, Any]
+
+class StyleType(Enum):
+    """Text styling types"""
+    NORMAL = "normal"
+    SUPERSCRIPT = "superscript"
+    SUBSCRIPT = "subscript"
+
 
 class MediaType(Enum):
+    """Supported topic media types"""
     TEXT = "text"
     IMAGE = "image"
 
+
+Topic = Dict[str, Any]
+StyledString = List[Tuple[str, StyleType]]
+
 PATTERN = re.compile(r"([^\^_]+)|(\^)\{([^\}]+)\}|(_)\{([^\}]+)\}")
 
-def parse_style(input_list: List[str]) -> List[List[Tuple[str, str]]]:
+
+class CheatsheetGenerator:
     """
-    Parse a string for superscripts (^{}) and subscripts (_{}).
-    Returns a list of lists of tuples (text, style), where style can be 'normal', 'superscript', or 'subscript'.
+    Tool for creating fully whitespace optimized cheatsheets using notes.
     """
-    results = []
 
-    for s in input_list:
-        parts = []
-        matches = PATTERN.finditer(s)
+    def __init__(
+        self,
+        topics: List[Topic],
+        dimensions: Tuple[float, float] = A4,
+        font_size: int = 5,
+    ):
+        self.topics = topics
+        self.width, self.height = dimensions
+        self.font_size = font_size
 
-        for match in matches:
-            if match.group(1):  # Normal text
-                parts.append((match.group(1), "normal"))
-            elif match.group(2):  # Superscript
-                parts.append((match.group(3), "superscript"))
-            elif match.group(4):  # Subscript
-                parts.append((match.group(5), "subscript"))
+        self._pdf_buffer = io.BytesIO()
+        self._canvas = canvas.Canvas(self._pdf_buffer, pagesize=A4)
 
-        results.append(parts)
+    def _parse_style(input_list: List[str]) -> List[List[Tuple[str, str]]]:
+        """
+        Parse a string for superscripts (^{}) and subscripts (_{}).
+        Returns a list of lists of tuples (text, style), where style can be 'normal', 'superscript', or 'subscript'.
+        """
+        results = []
 
-    return results
+        for s in input_list:
+            parts = []
+            matches = PATTERN.finditer(s)
 
-def render_parsed_text(c, x, y, parsed_text, font, font_size):
-    """
-    Render parsed text with LaTeX-style superscripts and subscripts on a ReportLab canvas.
-    """
-    for text, style in parsed_text:
-        if style == "normal":
-            c.setFont(font, font_size)
-            c.drawString(x, y, text)
-            x += styleStringWidth(c, text, font, font_size)
-        elif style == "superscript":
-            c.setFont(font, font_size * SCRIPT_SIZE_FONT)  # Smaller font for superscript
-            c.drawString(x, y + font_size * Y_SCRIPT, text)  # Raise superscript
-            x += styleStringWidth(c, text, font, font_size * SCRIPT_SIZE_FONT)
-        elif style == "subscript":
-            c.setFont(font, font_size * SCRIPT_SIZE_FONT)  # Smaller font for subscript
-            c.drawString(x, y - font_size * Y_SCRIPT, text)  # Lower subscript
-            x += styleStringWidth(c, text, font, font_size * SCRIPT_SIZE_FONT)
+            for match in matches:
+                if match.group(1):  # Normal text
+                    parts.append((match.group(1), "normal"))
+                elif match.group(2):  # Superscript
+                    parts.append((match.group(3), "superscript"))
+                elif match.group(4):  # Subscript
+                    parts.append((match.group(5), "subscript"))
 
-def styleStringWidth(c:canvas.Canvas, parsed_text: List[str], font: str, font_size: int) -> int:
-    """
-    wrapper for stringWidth function taking into account superscripts and subscript dimension changes.
-    """
-    width = 0
-    for text, style in parsed_text:
-        if style == "normal":
-            font_size = base_font_size
-        elif style in ["superscript", "subscript"]:
-            font_size = base_font_size * SCRIPT_SIZE_FONT  # Adjusted font size for superscripts and subscripts
-        else:
-            continue  # Skip unsupported styles (shouldn't occur with proper input)
+            results.append(parts)
 
-        # Add the width of the current segment
-        width += c.stringWidth(text, font, font_size)
+        return results
 
-    return width
+    def _render_parsed_text(self, x, y, parsed_text):
+        """
+        Render parsed text with LaTeX-style superscripts and subscripts on a ReportLab canvas.
+        """
+        for text, style in parsed_text:
+            if style == "normal":
+                c.setFont(font, font_size)
+                c.drawString(x, y, text)
+                x += self._styleStringWidth(c, text, font, font_size)
+            elif style == "superscript":
+                c.setFont(font, font_size *
+                          SCRIPT_SIZE_FONT)  # Smaller font for superscript
+                c.drawString(x, y + font_size * Y_SCRIPT,
+                             text)  # Raise superscript
+                x += self._styleStringWidth(text)
+            elif style == "subscript":
+                self._canvas.setFont(self.font, self.font_size *
+                          SCRIPT_SIZE_FONT)  # Smaller font for subscript
+                self._canvas.drawString(x, y - self.font_size * Y_SCRIPT,
+                             text)  # Lower subscript
+                x += self._styleStringWidth(text)
 
+    def _styleStringWidth(self, parsed_text: List[str]) -> int:
+        """
+        wrapper for stringWidth function taking into account superscripts and subscript dimension changes.
+        """
+        width = 0
+        for text, style in parsed_text:
+            if style == "normal":
+                font_size = self.font_size
+            elif style in ["superscript", "subscript"]:
+                font_size = self.font_size * SCRIPT_SIZE_FONT  # Adjusted font size for superscripts and subscripts
+            else:
+                continue  # Skip unsupported styles (shouldn't occur with proper input)
 
-def wrap_string_list(c: canvas.Canvas, font: str, font_size: int, strs: List[str]) -> List[str]:
-    """Word-wrap strs to maximize space efficiency, and return the word-wrapped list."""
-    if not strs:
-        return []
+            # Add the width of the current segment
+            width += self._canvas.stringWidth(text, 'Bullet-Font', font_size)
 
-    min_size = float('inf')
-    min_res = []
-    
-    max_str_len = int(max(styleStringWidth(c, s, font, font_size) for s in strs))
+        return width
 
-    for width in range(max_str_len//2, max_str_len+1):
-        res = []
-        for s in strs:
-            res.extend(wordwrap.wrap(s, c, font, font_size, width))
+    def _wrap_string_list(self, strs: List[str]) -> List[str]:
+        """Word-wrap strs to maximize space efficiency, and return the word-wrapped list."""
+        if not strs:
+            return []
 
-        size = max(styleStringWidth(c, s, font, font_size) for s in res) * len(res)
-        if size < min_size:
-            min_size = size
-            min_res = res
-    #print(min_res)
-    return min_res
+        min_size = float('inf')
+        min_res = []
 
-def get_dimensions(c: canvas.Canvas, content: ContentType, font_size: int) -> Tuple[float, float]:
-    """
-    Calculate the width and height of the given content, considering text wrapping.
-    Parameters:
-    - c: The ReportLab canvas object.
-    - content: The content dictionary containing topic, content, and media type.
-    - font_size: Font size for text.
-    - max_width: Maximum width of the text content before wrapping.
-    Returns:
-    - A tuple containing:
-        - The maximum width of the content.
-        - The total height of the content.
-    """
-    match MediaType(content['media']):
-        case MediaType.TEXT:
-            topic = content['topic']
-            bullet_points = wrap_string_list(c, 'Bullet-Font', font_size, content['content'])
-            content['wrapped_content'] = bullet_points # Update content for future use
-            content['parsed_content'] = parse_style(s for s in content['wrapped_content'])
-            #print(content['wrapped_content'])
-            print(content['parsed_content']) # use for debugging
+        max_str_len = int(min(max(self._canvas.stringWidth(s, 'Bullet-Font', self.font_size) for s in strs), self.width))
 
-            topic_width = max([c.stringWidth(topic, "Topic-Font", font_size)] + [styleStringWidth(c, s, "Bullet-Font", font_size) for s in content['parsed_content']]) 
-            topic_height = font_size * (len(bullet_points)+1) # +1 for topic
-            return topic_width, topic_height
-        case MediaType.IMAGE:
-            #content width, content height
-            img = Image.open(content['content'][0]) 
-  
-            # get width and height 
-            image_width = img.width 
-            image_height = img.height
-            scale_factor = max(image_height, image_height) / (2*inch)
-            image_height /= scale_factor
-            image_width /= scale_factor
+        for width in range(max_str_len // 2, max_str_len + 1):
+            res = []
+            for s in strs:
+                res.extend(wordwrap.wrap(s, self._canvas, 'Bullet-Font', self.font_size, width))
 
-            content['content'][1] = image_width
-            content['content'][2] = image_height
-            return image_width, image_height
+            size = max(
+                self._canvas.stringWidth(s, 'Bullet-Font', self.font_size)
+                for s in res) * len(res)
+            if size < min_size:
+                min_size = size
+                min_res = res
+        #print(min_res)
+        return min_res
 
-def place_content(
-    c: canvas.Canvas,
-    content: ContentType,
-    x: float,
-    y: float,
-    font_size: int,
-) -> None:
-    """
-    Place content directly at x and y on the given canvas.
-    Parameters:
-    - c: The ReportLab canvas object.
-    - content: The content dictionary containing topic, content, and media type.
-    - x: X-coordinate to start drawing.
-    - y: Y-coordinate to start drawing.
-    - font_size: Font size for text.
-    """
-    match MediaType(content['media']):
-        case MediaType.TEXT:
-            topic = content['topic']
-            #bullet_points = content['wrapped_content']
-            bullet_points = content['parsed_content']
+    def _get_dimensions(self, content: Topic) -> Tuple[float, float]:
+        """
+        Calculate the width and height of the given content, considering text wrapping.
+        Parameters:
+        - c: The ReportLab canvas object.
+        - content: The content dictionary containing topic, content, and media type.
+        - font_size: Font size for text.
+        - max_width: Maximum width of the text content before wrapping.
+        Returns:
+        - A tuple containing:
+            - The maximum width of the content.
+            - The total height of the content.
+        """
+        match MediaType(content['media']):
+            case MediaType.TEXT:
+                topic = content['topic']
+                bullet_points = self._wrap_string_list(content['content'])
+                content[
+                    'wrapped_content'] = bullet_points  # Update content for future use
+                # content['parsed_content'] = self._parse_style(
+                #     content['wrapped_content'])
+                # #print(content['wrapped_content'])
+                # print(content['parsed_content'])  # use for debugging
 
-            y -= font_size
-            # Draw the topic in bold
-            c.setFont("Topic-Font", font_size)
-            c.drawString(x, y, topic)
+                topic_width = max([self._canvas.stringWidth(topic, "Topic-Font", self.font_size)] + [self._canvas.stringWidth(s, "Bullet-Font", self.font_size) for s in bullet_points]) 
+                topic_height = self.font_size * (len(bullet_points) + 1
+                                                 )  # +1 for topic
 
-            c.setFont("Bullet-Font", font_size)  # Smaller font size to fit more text
-            for i, bullet in enumerate(bullet_points):
-                # Draw bullet point
-                render_parsed_text(c, x, y-((i+1)*font_size), bullet, "Bullet-Font", font_size)
-                #c.drawString(x, y-((i+1)*font_size), bullet)
+                return topic_width, topic_height
+            case MediaType.IMAGE:
+                #content width, content height
+                img = Image.open(content['content'][0])
 
-        case MediaType.IMAGE:
-            image_path = content['content'][0]
-            image_width = content['content'][1]
-            image_height = content['content'][2]
-            c.drawImage(image_path, x, y - image_height, width=image_width, height=image_height)
+                # get width and height
+                image_width = img.width
+                image_height = img.height
+                scale_factor = max(image_height, image_height) / (2 * inch)
+                image_height /= scale_factor
+                image_width /= scale_factor
 
-def create_pdf(data_dict: List[ContentType]) -> None:
-    """
-    Create a fully optimized cheatsheet from a list of topics. Utilizes formatting and
-    positioning to make efficient use of white space.
-    """
-    pdf_buffer = io.BytesIO()
-    c = canvas.Canvas(pdf_buffer, pagesize=A4)
-    page_width, page_height = A4
-    font_size = 5
-    
-    packer = newPacker(mode=PackingMode.Online, rotation=False)
+                content['content'][1] = image_width
+                content['content'][2] = image_height
+                return image_width, image_height
 
-    print("Creating cheatsheet...")
-    # Add infinite A4 bins
-    packer.add_bin(float2dec(page_width, DEC_PRECISION), float2dec(page_height, DEC_PRECISION), count=float('inf'))
+    def _place_content(
+        self,
+        content: Topic,
+        x: float,
+        y: float,
+    ) -> None:
+        """
+        Place content directly at x and y on the given canvas.
+        Parameters:
+        - c: The ReportLab canvas object.
+        - content: The content dictionary containing topic, content, and media type.
+        - x: X-coordinate to start drawing.
+        - y: Y-coordinate to start drawing.
+        - font_size: Font size for text.
+        """
+        match MediaType(content['media']):
+            case MediaType.TEXT:
+                topic = content['topic']
+                bullet_points = content['wrapped_content']
 
-    # Add topics to rectpack
-    for i, content in enumerate(data_dict):
-        w, h = get_dimensions(c, content, font_size)
-        packer.add_rect(float2dec(w, DEC_PRECISION), float2dec(h, DEC_PRECISION), i)
+                y -= self.font_size
+                # Draw the topic in bold
+                self._canvas.setFont("Topic-Font", self.font_size)
+                self._canvas.drawString(x, y, topic)
 
-    # Display rectpacked topics on PDF
-    for abin in packer:
-        for rect in abin:
-            x = float(rect.x)
-            y = page_height-float(rect.y) # rectpack uses bottom-left origin, adjust for reportlab
-            w = float(rect.width)
-            h = float(rect.height)
-            rid = rect.rid
-            
-            content = data_dict[rid]
-            place_content(c, content, x, y, font_size)
+                self._canvas.setFont(
+                    "Bullet-Font",
+                    self.font_size)  # Smaller font size to fit more text
+                for i, bullet in enumerate(bullet_points):
+                    # Draw bullet point
+                    self._canvas.drawString(x, y-((i+1)*self.font_size), bullet)
 
-        # Create new blank page
-        c.showPage()
-    # print(packer.rect_list())
-    # Save the PDF
-    c.save()
+            case MediaType.IMAGE:
+                image_path = content['content'][0]
+                image_width = content['content'][1]
+                image_height = content['content'][2]
+                self._canvas.drawImage(image_path,
+                                       x,
+                                       y - image_height,
+                                       width=image_width,
+                                       height=image_height)
 
-    pdf_buffer.seek(0)
-    return pdf_buffer
+    def create_pdf(self) -> io.BytesIO:
+        """
+        Create a fully optimized cheatsheet from a list of topics. Utilizes formatting and
+        positioning to make efficient use of white space.
+        """
+        print("Creating cheatsheet...")
 
-def create_cheatsheet_pdf(data_dict: List[ContentType]) -> str:
-    """
-    Create a cheatsheet on the filesystem from the given list of topics. Returns the path of the created cheatsheet.
-    """
-    return create_pdf(data_dict)
+        packer = newPacker(mode=PackingMode.Online, rotation=False)
+
+        # Add infinite A4 bins
+        packer.add_bin(float2dec(self.width, DEC_PRECISION),
+                       float2dec(self.height, DEC_PRECISION),
+                       count=float('inf'))
+
+        # Pack topics
+        for i, content in enumerate(self.topics):
+            w, h = self._get_dimensions(content)
+            packer.add_rect(float2dec(w, DEC_PRECISION),
+                            float2dec(h, DEC_PRECISION), i)
+
+        # Display rectpacked topics on PDF
+        for abin in packer:
+            for rect in abin:
+                x = float(rect.x)
+                y = self.height - float(
+                    rect.y
+                )  # rectpack uses bottom-left origin, adjust for reportlab
+                w = float(rect.width)
+                h = float(rect.height)
+                rid = rect.rid
+
+                content = data_dict[rid]
+                self._place_content(content, x, y)
+
+            # Create new blank page
+            self._canvas.showPage()
+
+        # Save the PDF
+        self._canvas.save()
+
+        self._pdf_buffer.seek(0)
+        return self._pdf_buffer
+
 
 if __name__ == "__main__":
     data_dict = []
     images = [
         {
             "topic": "Images",
-            "content": [
-                "example/dag.png", 4, 2
-            ],
+            "content": ["example/dag.png", 4, 2],
             "media": "image"
         },
         {
             "topic": "Images",
-            "content": [
-                "example/graph.png", 4, 2
-            ],
+            "content": ["example/graph.png", 4, 2],
             "media": "image"
         },
         {
             "topic": "Images",
-            "content": [
-                "example/proof.png", 4, 2
-            ],
+            "content": ["example/proof.png", 4, 2],
             "media": "image"
         },
         {
             "topic": "Images",
-            "content": [
-                "example/rules.png", 4, 2
-            ],
+            "content": ["example/rules.png", 4, 2],
             "media": "image"
         },
     ]
@@ -288,7 +318,8 @@ if __name__ == "__main__":
                 data['content'].append(line)
 
     for i, v in enumerate(images):
-        data_dict.insert(3 + 2*i, v)
+        data_dict.insert(3 + 2 * i, v)
 
+    gen = CheatsheetGenerator(data_dict)
     with open("cheatsheet.pdf", "wb") as f:
-        f.write(create_pdf(data_dict).read())
+        f.write(gen.create_pdf().read())
