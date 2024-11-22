@@ -181,10 +181,16 @@ const Home = () => {
     const insertNoWrap = (topicIndex, textIndex) => {  //no txt wrap
         const updatedTopics = [...topics];
         const currentText = updatedTopics[topicIndex].textSegments[textIndex];
-        updatedTopics[topicIndex].textSegments[textIndex] = currentText + '///';
+        updatedTopics[topicIndex].textSegments[textIndex] = currentText + '\\\\';
         updateTopics(updatedTopics);
     };
-
+    
+    const insertCodeBlock = (topicIndex, textIndex) => {  //no txt wrap
+        const updatedTopics = [...topics];
+        const currentText = updatedTopics[topicIndex].textSegments[textIndex];
+        updatedTopics[topicIndex].textSegments[textIndex] = currentText + '<<< >>>';
+        updateTopics(updatedTopics);
+    };
     //math symbol dropdown menu
     const handleSymbolMenuOpen = (event, topicIndex, textIndex) => {
         setSymbolMenuAnchorEl(event.currentTarget);
@@ -255,7 +261,7 @@ const Home = () => {
                                                         </IconButton>
                                                     </Tooltip>
                                                     <Tooltip title="Code Block" arrow>
-                                                        <IconButton onClick={() => applyFormatting('code', topicIndex, textIndex)}>
+                                                        <IconButton onClick={() => insertCodeBlock(topicIndex, 0)}>
                                                             <CodeIcon />
                                                         </IconButton>
                                                     </Tooltip>
