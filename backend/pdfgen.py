@@ -3,7 +3,6 @@ from io import BufferedWriter
 import os
 import random
 import tempfile
-import re
 
 from PIL import Image 
 from typing import Any, Dict, List, Tuple
@@ -17,81 +16,17 @@ from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.pdfbase import pdfmetrics
 
 import wordwrap
-
-DEC_PRECISION = 6
-SCRIPT_SIZE_FONT = 0.7 # super/subscript font size
-Y_SCRIPT = 1 - SCRIPT_SIZE_FONT
+from mathsymbols import *
 
 pdfmetrics.registerFont(TTFont('Bullet-Font', 'fonts/NotoSans-Regular.ttf'))
 pdfmetrics.registerFont(TTFont('Topic-Font', 'fonts/NotoSans-Bold.ttf'))
 
 ContentType = Dict[str, Any]
+DEC_PRECISION = 6
 
 class MediaType(Enum):
     TEXT = "text"
     IMAGE = "image"
-
-PATTERN = re.compile(r"([^\^_]+)|(\^)\{([^\}]+)\}|(_)\{([^\}]+)\}")
-
-def parse_style(input_list: List[str]) -> List[List[Tuple[str, str]]]:
-    """
-    Parse a string for superscripts (^{}) and subscripts (_{}).
-    Returns a list of lists of tuples (text, style), where style can be 'normal', 'superscript', or 'subscript'.
-    """
-    results = []
-
-    for s in input_list:
-        parts = []
-        matches = PATTERN.finditer(s)
-
-        for match in matches:
-            if match.group(1):  # Normal text
-                parts.append((match.group(1), "normal"))
-            elif match.group(2):  # Superscript
-                parts.append((match.group(3), "superscript"))
-            elif match.group(4):  # Subscript
-                parts.append((match.group(5), "subscript"))
-
-        results.append(parts)
-
-    return results
-
-def render_parsed_text(c, x, y, parsed_text, font, font_size):
-    """
-    Render parsed text with LaTeX-style superscripts and subscripts on a ReportLab canvas.
-    """
-    for text, style in parsed_text:
-        if style == "normal":
-            c.setFont(font, font_size)
-            c.drawString(x, y, text)
-            x += styleStringWidth(c, text, font, font_size)
-        elif style == "superscript":
-            c.setFont(font, font_size * SCRIPT_SIZE_FONT)  # Smaller font for superscript
-            c.drawString(x, y + font_size * Y_SCRIPT, text)  # Raise superscript
-            x += styleStringWidth(c, text, font, font_size * SCRIPT_SIZE_FONT)
-        elif style == "subscript":
-            c.setFont(font, font_size * SCRIPT_SIZE_FONT)  # Smaller font for subscript
-            c.drawString(x, y - font_size * Y_SCRIPT, text)  # Lower subscript
-            x += styleStringWidth(c, text, font, font_size * SCRIPT_SIZE_FONT)
-
-def styleStringWidth(c:canvas.Canvas, parsed_text: List[str], font: str, font_size: int) -> int:
-    """
-    wrapper for stringWidth function taking into account superscripts and subscript dimension changes.
-    """
-    width = 0
-    for text, style in parsed_text:
-        if style == "normal":
-            font_size = base_font_size
-        elif style in ["superscript", "subscript"]:
-            font_size = base_font_size * SCRIPT_SIZE_FONT  # Adjusted font size for superscripts and subscripts
-        else:
-            continue  # Skip unsupported styles (shouldn't occur with proper input)
-
-        # Add the width of the current segment
-        width += c.stringWidth(text, font, font_size)
-
-    return width
-
 
 def wrap_string_list(c: canvas.Canvas, font: str, font_size: int, strs: List[str]) -> List[str]:
     """Word-wrap strs to maximize space efficiency, and return the word-wrapped list."""
@@ -100,19 +35,21 @@ def wrap_string_list(c: canvas.Canvas, font: str, font_size: int, strs: List[str
 
     min_size = float('inf')
     min_res = []
+
+    parsed_text = parse_style(strs)
     
-    max_str_len = int(max(styleStringWidth(c, s, font, font_size) for s in strs))
+    max_str_len = int(max(styleStringWidth(c, parsed_text, font, font_size)))
 
     for width in range(max_str_len//2, max_str_len+1):
         res = []
-        for s in strs:
+        for s in parsed_text:
             res.extend(wordwrap.wrap(s, c, font, font_size, width))
-
-        size = max(styleStringWidth(c, s, font, font_size) for s in res) * len(res)
+        #print(res)
+        size = max(styleStringWidth(c, s, font, font_size) for s in res) * len(res) 
         if size < min_size:
             min_size = size
             min_res = res
-    #print(min_res)
+
     return min_res
 
 def get_dimensions(c: canvas.Canvas, content: ContentType, font_size: int) -> Tuple[float, float]:
@@ -131,15 +68,17 @@ def get_dimensions(c: canvas.Canvas, content: ContentType, font_size: int) -> Tu
     match MediaType(content['media']):
         case MediaType.TEXT:
             topic = content['topic']
+            #print(content['content'])
             bullet_points = wrap_string_list(c, 'Bullet-Font', font_size, content['content'])
             content['wrapped_content'] = bullet_points # Update content for future use
-            content['parsed_content'] = parse_style(s for s in content['wrapped_content'])
+            content['parsed_content'] = parse_style(content['wrapped_content'])
             #print(content['wrapped_content'])
-            print(content['parsed_content']) # use for debugging
+            #print(content['parsed_content']) # use for debugging
 
-            topic_width = max([c.stringWidth(topic, "Topic-Font", font_size)] + [styleStringWidth(c, s, "Bullet-Font", font_size) for s in content['parsed_content']]) 
+            topic_width = max([c.styleStringWidth(topic, "Topic-Font", font_size)] + [c.styleStringWidth(content['parsed_content'], "Bullet-Font", font_size)]) 
             topic_height = font_size * (len(bullet_points)+1) # +1 for topic
             return topic_width, topic_height
+        
         case MediaType.IMAGE:
             #content width, content height
             img = Image.open(content['content'][0]) 
@@ -184,9 +123,8 @@ def place_content(
 
             c.setFont("Bullet-Font", font_size)  # Smaller font size to fit more text
             for i, bullet in enumerate(bullet_points):
-                # Draw bullet point
                 render_parsed_text(c, x, y-((i+1)*font_size), bullet, "Bullet-Font", font_size)
-                #c.drawString(x, y-((i+1)*font_size), bullet)
+
 
         case MediaType.IMAGE:
             image_path = content['content'][0]
@@ -227,7 +165,7 @@ def create_pdf(data_dict: List[ContentType], file: BufferedWriter) -> None:
 
         # Create new blank page
         c.showPage()
-    # print(packer.rect_list())
+    
     # Save the PDF
     c.save()
 
@@ -275,7 +213,7 @@ images = [
         "media": "image"
     },
 ]
-with open('example/neil_cheatsheet.txt', 'r', encoding='utf-8') as f:
+with open('./example/neil_cheatsheet.txt', 'r', encoding='utf-8') as f:
     data = {'media': 'text', 'content': []}
     for line in f.readlines():
         if not line.strip():

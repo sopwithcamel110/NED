@@ -148,17 +148,18 @@ class TextWrapper:
         return self.canvas.stringWidth(text, self.font, self.font_size)
 
     def _munge_whitespace(self, text):
-        """_munge_whitespace(text : string) -> string
-
-        Munge whitespace in text: expand tabs and convert all other
-        whitespace characters to spaces.  Eg. " foo\\tbar\\n\\nbaz"
-        becomes " foo    bar  baz".
-        """
+        """Munge whitespace in text represented as list[tuple]."""
+        if not isinstance(text, list):
+            raise TypeError("Input text must be a list of tuples.")
+        
+        # Combine text while preserving formatting metadata
+        combined_text = ''.join([t[0] for t in text])  # Concatenate text parts
         if self.expand_tabs:
-            text = text.expandtabs(self.tabsize)
+            combined_text = combined_text.expandtabs(self.tabsize)
         if self.replace_whitespace:
-            text = text.translate(self.unicode_whitespace_trans)
-        return text
+            combined_text = combined_text.translate(self.unicode_whitespace_trans)
+        
+        return [(ch, t[1]) for ch, t in zip(combined_text, text)]
 
 
     def _split(self, text):
@@ -346,59 +347,67 @@ class TextWrapper:
         return lines
 
     def _split_chunks(self, text):
-        text = self._munge_whitespace(text)
-        return self._split(text)
+        """Split the list of tuples into indivisible chunks."""
+        if not isinstance(text, list):
+            raise TypeError("Input text must be a list of tuples.")
+        
+        # Combine text for splitting
+        combined_text = ''.join([t[0] for t in text])
+        chunks = self._split(combined_text)  # Use the modified _split method
+
+        # Map chunks back to tuples with formatting metadata
+        tupled_chunks = []
+        current_index = 0
+        for chunk in chunks:
+            chunk_length = len(chunk)
+            chunk_metadata = [
+                (chunk[i], text[current_index + i][1])
+                for i in range(chunk_length)
+                if current_index + i < len(text)
+            ]
+            tupled_chunks.extend(chunk_metadata)
+            current_index += chunk_length
+        
+        return tupled_chunks
 
     # -- Public interface ----------------------------------------------
 
     def wrap(self, text):
-        """wrap(text : string) -> [string]
-
-        Reformat the single paragraph in 'text' so it fits in lines of
-        no more than 'self.width' columns, and return a list of wrapped
-        lines.  Tabs in 'text' are expanded with string.expandtabs(),
-        and all other whitespace characters (including newline) are
-        converted to space.
-        """
-        chunks = self._split_chunks(text)
+        """Wrap a list of tuples into lines as list[tuple]."""
+        if not isinstance(text, list) or not all(isinstance(t, tuple) for t in text):
+            raise TypeError("Input text must be a list of tuples.")
+        
+        # Munge and split text
+        munged_text = self._munge_whitespace(text)
+        chunks = self._split_chunks(munged_text)
+        
         if self.fix_sentence_endings:
             self._fix_sentence_endings(chunks)
-        return self._wrap_chunks(chunks)
+        
+        # Perform wrapping
+        wrapped_lines = self._wrap_chunks(chunks)
+        
+        # Convert each line into a tuple, preserving metadata
+        result = []
+        for line in wrapped_lines:
+            result.append(tuple(line))  # Each line becomes a tuple of chunks
+        return result
 
     def fill(self, text):
-        """fill(text : string) -> string
-
-        Reformat the single paragraph in 'text' to fit in lines of no
-        more than 'self.width' columns, and return a new string
-        containing the entire wrapped paragraph.
-        """
-        return "\n".join(self.wrap(text))
+        """Fill a list of tuples into a single formatted string."""
+        wrapped = self.wrap(text)
+        return "\n".join(["".join([chunk[0] for chunk in line]) for line in wrapped])
 
 
 # -- Convenience interface ---------------------------------------------
 
 def wrap(text, canvas, font, font_size, width, **kwargs):
-    """Wrap a single paragraph of text, returning a list of wrapped lines.
-
-    Reformat the single paragraph in 'text' so it fits in lines of no
-    more than 'width' columns, and return a list of wrapped lines.  By
-    default, tabs in 'text' are expanded with string.expandtabs(), and
-    all other whitespace characters (including newline) are converted to
-    space.  See TextWrapper class for available keyword args to customize
-    wrapping behaviour.
-    """
+    """Wrap a list of tuples into lines as list[tuple]."""
     w = TextWrapper(canvas, font, font_size, width=width, **kwargs)
     return w.wrap(text)
 
 def fill(text, canvas, font, font_size, width, **kwargs):
-    """Fill a single paragraph of text, returning a new string.
-
-    Reformat the single paragraph in 'text' to fit in lines of no more
-    than 'width' columns, and return a new string containing the entire
-    wrapped paragraph.  As with wrap(), tabs are expanded and other
-    whitespace characters converted to space.  See TextWrapper class for
-    available keyword args to customize wrapping behaviour.
-    """
+    """Fill a list of tuples into a single string."""
     w = TextWrapper(canvas, font, font_size, width=width, **kwargs)
     return w.fill(text)
 
