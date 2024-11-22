@@ -1,4 +1,4 @@
-import React, { useState, useRef} from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
@@ -19,11 +19,15 @@ import FunctionsIcon from '@mui/icons-material/Functions';
 import Grid from '@mui/material/Grid2';
 import './Home.css';
 
+const API_BASE_URL = "http://localhost:5000"; // Replace with your actual backend URL
+
 const Home = () => {
     const [topics, setTopics] = useState(() => {
         const savedTopics = localStorage.getItem('topics');
         return savedTopics ? JSON.parse(savedTopics) : [{ topic: '', textSegments: [''] }];
     });
+    const [anchorEl, setAnchorEl] = useState(null); // For symbol menu
+    const contentRef = useRef(null);
     const navigate = useNavigate();
 
     //math symbols
@@ -33,7 +37,46 @@ const Home = () => {
 
     const updateTopics = (newTopics) => {
         setTopics(newTopics);
-        localStorage.setItem('topics', JSON.stringify(newTopics));
+    };
+
+    // Save a new topic to the backend
+    const saveTopics = async (newTopics) => {
+        var response = await fetch(API_BASE_URL + "/createpdf", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify(newTopics),
+        });
+        
+        if (response.ok) {
+            const blob = await response.blob();
+            const url = URL.createObjectURL(blob); // Convert Blob to an Object URL
+            return url;
+        } else {
+            console.error("Failed to generate PDF");
+            return "";
+        }
+      };
+      
+      const collectAndSaveTopics = async () => {
+        const topicData = topics.map((topicObj) => ({
+          'topic': topicObj.topic,
+          'content': topicObj.textSegments[0].split('\n'),
+          'media': 'text',
+        }));
+      
+        return await saveTopics(topicData);
+      };
+
+    // Delete a topic from the backend
+    const deleteTopic = async (topicId) => {
+        try {
+            await fetch(`${API_BASE_URL}/${topicId}`, { method: 'DELETE' });
+            console.log("Topic deleted successfully");
+        } catch (error) {
+            console.error("Error deleting topic:", error);
+        }
     };
 
     const handleTopicChange = (index, value) => {
@@ -48,13 +91,9 @@ const Home = () => {
         updateTopics(newTopics);
     };
 
-    const deleteTopic = (topicIndex) => {
-        const newTopics = topics.filter((_, index) => index !== topicIndex);
-        updateTopics(newTopics);
-    };
-
     const addNewTopic = () => {
-        updateTopics([...topics, { topic: '', textSegments: [''] }]);
+        const newTopic = { topic: '', textSegments: [''] };
+        setTopics([...topics, newTopic]);
     };
 
     const onDragEnd = (result) => {
@@ -66,20 +105,50 @@ const Home = () => {
         updateTopics(reorderedTopics);
     };
 
-    const handleNext = () => {
-        const allValid = topics.every(topic => topic.topic.trim() !== '' && topic.textSegments.some(segment => segment.trim() !== ''));
+    const handleNext = async () => {
+        // Make sure topics are valid before saving
+        const allValid = topics.every(
+          (topic) => topic.topic.trim() !== '' && topic.textSegments.some((segment) => segment.trim() !== '')
+        );
+        
         if (!allValid) {
-            alert('Please ensure all topics have titles and at least one text segment.');
-            return;
+          alert('Please ensure all topics have titles and at least one text segment.');
+          return;
         }
-        navigate('/preview', { state: { topics } });
-    };
+        
+        var location = await collectAndSaveTopics();
+        navigate('/preview', { state: { pdfLocation: location } });
+      };
 
-    const scrollToContent = () => {
+    const scrollToContent = async() => {
         document.getElementById('content-section').scrollIntoView({ behavior: 'smooth', block: 'center' });
+        try {
+            await fetch(API_BASE_URL + "/ping", {
+                method: "GET",
+                headers: { "Content-Type": "application/json" }
+            });
+        }
+        catch {
+            console.log("API IS NOT RUNNING. RUN THE API IN THE BACKEND FOLDER BEFORE STARTING THIS APPLICATION.")
+        }
     };
 
-    
+    const applyFormatting = (type, topicIndex, textIndex) => {
+        const updatedTopics = [...topics];
+        let text = updatedTopics[topicIndex].textSegments[textIndex];
+
+        if (type === 'numbered') {
+            text = text.split('\n').map((line, i) => `${i + 1}. ${line}`).join('\n');
+        } else if (type === 'bulleted') {
+            text = text.split('\n').map(line => `• ${line}`).join('\n');
+        } else if (type === 'code') {
+            text = `\`\`\`\n${text}\n\`\`\``;
+        }
+
+        updatedTopics[topicIndex].textSegments[textIndex] = text;
+        updateTopics(updatedTopics);
+    };
+
     const insertExponent = (topicIndex, textIndex) => { //exponent button
         const updatedTopics = [...topics];
         const currentText = updatedTopics[topicIndex].textSegments[textIndex];

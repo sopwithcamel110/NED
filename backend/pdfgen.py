@@ -1,5 +1,6 @@
 from enum import Enum
 from io import BufferedWriter
+import io
 import os
 import random
 import tempfile
@@ -7,6 +8,7 @@ import tempfile
 from PIL import Image 
 from typing import Any, Dict, List, Tuple
 
+from rectpack import float2dec, newPacker, PackingMode
 from reportlab.platypus import SimpleDocTemplate, Spacer
 from reportlab.lib.units import inch
 from reportlab.lib.pagesizes import A4
@@ -16,7 +18,10 @@ from reportlab.pdfbase import pdfmetrics
 
 import wordwrap
 
-pdfmetrics.registerFont(TTFont('Bullet-Font', 'fonts/Notosans-Regular.ttf'))
+DEC_PRECISION = 6
+
+
+pdfmetrics.registerFont(TTFont('Bullet-Font', 'fonts/NotoSans-Regular.ttf'))
 pdfmetrics.registerFont(TTFont('Topic-Font', 'fonts/NotoSans-Bold.ttf'))
 
 ContentType = Dict[str, Any]
@@ -104,6 +109,7 @@ def place_content(
             topic = content['topic']
             bullet_points = content['wrapped_content']
 
+            y -= font_size
             # Draw the topic in bold
             c.setFont("Topic-Font", font_size)
             c.drawString(x, y, topic)
@@ -119,103 +125,99 @@ def place_content(
             image_height = content['content'][2]
             c.drawImage(image_path, x, y - image_height, width=image_width, height=image_height)
 
-def create_pdf(data_dict: List[ContentType], file: BufferedWriter) -> None:
+def create_pdf(data_dict: List[ContentType]) -> None:
     """
     Create a fully optimized cheatsheet from a list of topics. Utilizes formatting and
     positioning to make efficient use of white space.
     """
-    c = canvas.Canvas(file, pagesize=A4)
+    pdf_buffer = io.BytesIO()
+    c = canvas.Canvas(pdf_buffer, pagesize=A4)
     page_width, page_height = A4
     font_size = 5
     
-    top_margin = font_size
-    current_x = 0
-    current_y = page_height-top_margin
+    packer = newPacker(mode=PackingMode.Online, rotation=False)
 
-    total_height = 0
-    msf_height = 0 # max-so-far height
-    for content in data_dict:
-        topic_width, topic_height = get_dimensions(c, content, font_size)
+    print("Creating cheatsheet...")
+    # Add infinite A4 bins
+    packer.add_bin(float2dec(page_width, DEC_PRECISION), float2dec(page_height, DEC_PRECISION), count=float('inf'))
 
-        if current_x + topic_width > page_width:
-            # Topic goes off right of page, go to next line
-            current_x = 0
-            total_height += msf_height
-            msf_height = 0
-            current_y = page_height-top_margin-total_height  # Move down to the next line
-        elif current_y - topic_height <= 0:
-            # Topic goes off bottom of page, create a new one
-            c.showPage()
-            total_height = msf_height = 0
-            current_x = 0
-            current_y = page_height-top_margin 
+    # Add topics to rectpack
+    for i, content in enumerate(data_dict):
+        w, h = get_dimensions(c, content, font_size)
+        packer.add_rect(float2dec(w, DEC_PRECISION), float2dec(h, DEC_PRECISION), i)
 
-        msf_height = max(msf_height, topic_height)
+    # Display rectpacked topics on PDF
+    for abin in packer:
+        for rect in abin:
+            x = float(rect.x)
+            y = page_height-float(rect.y) # rectpack uses bottom-left origin, adjust for reportlab
+            w = float(rect.width)
+            h = float(rect.height)
+            rid = rect.rid
+            
+            content = data_dict[rid]
+            place_content(c, content, x, y, font_size)
 
-        place_content(c, content, current_x, current_y, font_size)
-
-        # Check for page overflow
-        current_x += topic_width + 2  # Update x position after the topic, add 2 for some space between topics
-
+        # Create new blank page
+        c.showPage()
+    # print(packer.rect_list())
     # Save the PDF
     c.save()
+
+    pdf_buffer.seek(0)
+    return pdf_buffer
 
 def create_cheatsheet_pdf(data_dict: List[ContentType]) -> str:
     """
     Create a cheatsheet on the filesystem from the given list of topics. Returns the path of the created cheatsheet.
     """
-    temp_dir = tempfile.mkdtemp()
-    file_path = os.path.join(temp_dir, 'cheatsheet.pdf')
+    return create_pdf(data_dict)
 
-    # Create a file in the temp directory
-    with open(file_path, 'wb') as temp_file:
-        create_pdf(data_dict, temp_file)
+if __name__ == "__main__":
+    data_dict = []
+    images = [
+        {
+            "topic": "Images",
+            "content": [
+                "example/dag.png", 4, 2
+            ],
+            "media": "image"
+        },
+        {
+            "topic": "Images",
+            "content": [
+                "example/graph.png", 4, 2
+            ],
+            "media": "image"
+        },
+        {
+            "topic": "Images",
+            "content": [
+                "example/proof.png", 4, 2
+            ],
+            "media": "image"
+        },
+        {
+            "topic": "Images",
+            "content": [
+                "example/rules.png", 4, 2
+            ],
+            "media": "image"
+        },
+    ]
+    with open('example/neil_cheatsheet.txt', 'r', encoding='utf-8') as f:
+        data = {'media': 'text', 'content': []}
+        for line in f.readlines():
+            if not line.strip():
+                data_dict.append(data)
+                data = {'media': 'text', 'content': []}
+            elif 'topic' not in data:
+                data['topic'] = line
+            else:
+                data['content'].append(line)
 
-    return file_path
+    for i, v in enumerate(images):
+        data_dict.insert(3 + 2*i, v)
 
-data_dict = []
-images = [
-    {
-        "topic": "Images",
-        "content": [
-            "example/dag.png", 4, 2
-        ],
-        "media": "image"
-    },
-    {
-        "topic": "Images",
-        "content": [
-            "example/graph.png", 4, 2
-        ],
-        "media": "image"
-    },
-    {
-        "topic": "Images",
-        "content": [
-            "example/proof.png", 4, 2
-        ],
-        "media": "image"
-    },
-    {
-        "topic": "Images",
-        "content": [
-            "example/rules.png", 4, 2
-        ],
-        "media": "image"
-    },
-]
-with open('example/neil_cheatsheet.txt', 'r', encoding='utf-8') as f:
-    data = {'media': 'text', 'content': []}
-    for line in f.readlines():
-        if not line.strip():
-            data_dict.append(data)
-            data = {'media': 'text', 'content': []}
-        elif 'topic' not in data:
-            data['topic'] = line
-        else:
-            data['content'].append(line)
-
-for i, v in enumerate(images):
-    data_dict.insert(3 + 2*i, v)
-
-create_pdf(data_dict, "test.pdf")
+    with open("cheatsheet.pdf", "wb") as f:
+        f.write(create_pdf(data_dict).read())
