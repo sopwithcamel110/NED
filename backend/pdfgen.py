@@ -1,5 +1,6 @@
 from enum import Enum
 from io import BufferedWriter
+import io
 import os
 import random
 import tempfile
@@ -21,6 +22,7 @@ import wordwrap
 DEC_PRECISION = 6
 SCRIPT_SIZE_FONT = 0.7 # super/subscript font size
 Y_SCRIPT = 1 - SCRIPT_SIZE_FONT
+
 
 pdfmetrics.registerFont(TTFont('Bullet-Font', 'fonts/NotoSans-Regular.ttf'))
 pdfmetrics.registerFont(TTFont('Topic-Font', 'fonts/NotoSans-Bold.ttf'))
@@ -194,17 +196,19 @@ def place_content(
             image_height = content['content'][2]
             c.drawImage(image_path, x, y - image_height, width=image_width, height=image_height)
 
-def create_pdf(data_dict: List[ContentType], file: BufferedWriter) -> None:
+def create_pdf(data_dict: List[ContentType]) -> None:
     """
     Create a fully optimized cheatsheet from a list of topics. Utilizes formatting and
     positioning to make efficient use of white space.
     """
-    c = canvas.Canvas(file, pagesize=A4)
+    pdf_buffer = io.BytesIO()
+    c = canvas.Canvas(pdf_buffer, pagesize=A4)
     page_width, page_height = A4
     font_size = 5
     
     packer = newPacker(mode=PackingMode.Online, rotation=False)
 
+    print("Creating cheatsheet...")
     # Add infinite A4 bins
     packer.add_bin(float2dec(page_width, DEC_PRECISION), float2dec(page_height, DEC_PRECISION), count=float('inf'))
 
@@ -231,62 +235,60 @@ def create_pdf(data_dict: List[ContentType], file: BufferedWriter) -> None:
     # Save the PDF
     c.save()
 
+    pdf_buffer.seek(0)
+    return pdf_buffer
+
 def create_cheatsheet_pdf(data_dict: List[ContentType]) -> str:
     """
     Create a cheatsheet on the filesystem from the given list of topics. Returns the path of the created cheatsheet.
     """
-    temp_dir = tempfile.mkdtemp()
-    file_path = os.path.join(temp_dir, 'cheatsheet.pdf')
+    return create_pdf(data_dict)
 
-    # Create a file in the temp directory
-    with open(file_path, 'wb') as temp_file:
-        create_pdf(data_dict, temp_file)
+if __name__ == "__main__":
+    data_dict = []
+    images = [
+        {
+            "topic": "Images",
+            "content": [
+                "example/dag.png", 4, 2
+            ],
+            "media": "image"
+        },
+        {
+            "topic": "Images",
+            "content": [
+                "example/graph.png", 4, 2
+            ],
+            "media": "image"
+        },
+        {
+            "topic": "Images",
+            "content": [
+                "example/proof.png", 4, 2
+            ],
+            "media": "image"
+        },
+        {
+            "topic": "Images",
+            "content": [
+                "example/rules.png", 4, 2
+            ],
+            "media": "image"
+        },
+    ]
+    with open('example/neil_cheatsheet.txt', 'r', encoding='utf-8') as f:
+        data = {'media': 'text', 'content': []}
+        for line in f.readlines():
+            if not line.strip():
+                data_dict.append(data)
+                data = {'media': 'text', 'content': []}
+            elif 'topic' not in data:
+                data['topic'] = line
+            else:
+                data['content'].append(line)
 
-    return file_path
+    for i, v in enumerate(images):
+        data_dict.insert(3 + 2*i, v)
 
-data_dict = []
-images = [
-    {
-        "topic": "Images",
-        "content": [
-            "example/dag.png", 4, 2
-        ],
-        "media": "image"
-    },
-    {
-        "topic": "Images",
-        "content": [
-            "example/graph.png", 4, 2
-        ],
-        "media": "image"
-    },
-    {
-        "topic": "Images",
-        "content": [
-            "example/proof.png", 4, 2
-        ],
-        "media": "image"
-    },
-    {
-        "topic": "Images",
-        "content": [
-            "example/rules.png", 4, 2
-        ],
-        "media": "image"
-    },
-]
-with open('example/neil_cheatsheet.txt', 'r', encoding='utf-8') as f:
-    data = {'media': 'text', 'content': []}
-    for line in f.readlines():
-        if not line.strip():
-            data_dict.append(data)
-            data = {'media': 'text', 'content': []}
-        elif 'topic' not in data:
-            data['topic'] = line
-        else:
-            data['content'].append(line)
-
-for i, v in enumerate(images):
-    data_dict.insert(3 + 2*i, v)
-
-create_pdf(data_dict, "test.pdf")
+    with open("cheatsheet.pdf", "wb") as f:
+        f.write(create_pdf(data_dict).read())

@@ -1,0 +1,118 @@
+/* Home.css */
+
+.home-container {
+    font-family: Arial, sans-serif;
+}
+
+/* Welcome Section */
+.welcome-section {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    /* background-color: #fff9e6; */
+    text-align: center;
+    /* test image as background? */
+    background-image: url('ExamNoteSheetEditor.png');
+    background-position: top 10px center; 
+    background-repeat: no-repeat;
+}
+
+.welcome-section h1 {
+    font-size: 3em;
+    font-weight: bold;
+    color: black;
+}
+
+.arrow-icon {
+    font-size: 3em;
+    animation: bounce 1.5s infinite;
+    background-color: #333333; /* Dark Gray Circle */
+    color: #fff; /* White Arrow */
+    padding: 15px;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+.arrow-icon:hover {
+    background-color: #555555; /* Slightly lighter gray when hovered */
+}
+
+@keyframes bounce {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-10px); }
+}
+
+.content-section {
+    padding: 20px;
+    background-color: #ffffff;
+}
+
+h2 {
+    text-align: center;
+    font-size: 2em;
+    margin: 20px 0;
+}
+
+.topic-container {
+    
+    border: 2px solid #333;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 20px;
+    background-color: #f9f9f9;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+.delete-icon-button:hover {
+    color: white; /* Change icon color to white when hovered */
+}
+
+.topic-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.toolbar .MuiIconButton-root {
+    transition: background-color 0.3s ease;
+}
+
+.toolbar .MuiIconButton-root:hover {
+    background-color: #d3d3d3;
+}
+
+.text-box-container {
+    margin-top: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.consistent-textarea {
+    width: 100%;
+}
+
+.button-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    margin-top: 10px;
+}
+
+
+.footer-buttons {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+.footer-buttons2 {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin-top: 20px;
+}
