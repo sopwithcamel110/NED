@@ -23,6 +23,7 @@ class CreatePDF(Resource):
     def post(self):
         content = request.json
         buf = create_cheatsheet_pdf(content)
+        #buf = open('example/dummy.pdf', 'rb')
         return send_file(buf, mimetype='application/pdf', as_attachment=False, download_name="generated.pdf")
 
     
