@@ -164,13 +164,6 @@ const Home = () => {
         updateTopics(updatedTopics);
     };
 
-    const insertFraction = (topicIndex, textIndex) => {  //Fraction
-        const updatedTopics = [...topics];
-        const currentText = updatedTopics[topicIndex].textSegments[textIndex];
-        updatedTopics[topicIndex].textSegments[textIndex] = currentText + '{}/{}';
-        updateTopics(updatedTopics);
-    };
-
     const insertSQRT = (topicIndex, textIndex) => {  //Square root bttn
         const updatedTopics = [...topics];
         const currentText = updatedTopics[topicIndex].textSegments[textIndex];
@@ -278,12 +271,6 @@ const Home = () => {
                                                     <Tooltip title="Subscript" arrow>
                                                         <IconButton onClick={() => insertSubscript(topicIndex, 0)}>
                                                             <SubscriptIcon/>
-                                                        </IconButton>
-                                                    </Tooltip>
-
-                                                    <Tooltip title="Fraction" arrow>
-                                                        <IconButton onClick={() => insertFraction(topicIndex, 0)}>
-                                                            <QuestionMarkIcon/>
                                                         </IconButton>
                                                     </Tooltip>
                                                     <Tooltip title="Square Root" arrow>
