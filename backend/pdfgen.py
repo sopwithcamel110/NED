@@ -104,10 +104,11 @@ class CheatsheetGenerator:
                              text)  # Raise superscript
                 x += self._styleStringWidth(text)
             elif style == "subscript":
-                self._canvas.setFont(self.font, self.font_size *
-                          SCRIPT_SIZE_FONT)  # Smaller font for subscript
+                self._canvas.setFont(
+                    self.font, self.font_size *
+                    SCRIPT_SIZE_FONT)  # Smaller font for subscript
                 self._canvas.drawString(x, y - self.font_size * Y_SCRIPT,
-                             text)  # Lower subscript
+                                        text)  # Lower subscript
                 x += self._styleStringWidth(text)
 
     def _styleStringWidth(self, parsed_text: List[str]) -> int:
@@ -128,29 +129,44 @@ class CheatsheetGenerator:
 
         return width
 
-    def _wrap_string_list(self, strs: List[str]) -> List[str]:
-        """Word-wrap strs to maximize space efficiency, and return the word-wrapped list."""
-        if not strs:
-            return []
-
+    def _wrap_string_list(self, content: Topic) -> None:
+        """Word-wrap topic to maximize space efficiency."""
         min_size = float('inf')
-        min_res = []
 
-        max_str_len = int(min(max(self._canvas.stringWidth(s, 'Bullet-Font', self.font_size) for s in strs), self.width))
+        raw_topic = content['topic']
+        content['topic'] = [raw_topic]
+        raw_content = content['content']
+
+        max_str_len = max(
+                self._canvas.stringWidth(raw_topic, 'Topic-Font', self.font_size),
+                max(
+                    (self._canvas.stringWidth(s, 'Bullet-Font', self.font_size)
+                    for s in raw_content), default=float('-inf')))
+        
+        max_str_len = int(min(max_str_len, self.width))
+        content['width'] = max_str_len
 
         for width in range(max_str_len // 2, max_str_len + 1):
-            res = []
-            for s in strs:
-                res.extend(wordwrap.wrap(s, self._canvas, 'Bullet-Font', self.font_size, width))
+            topic = wordwrap.wrap(raw_topic, self._canvas, 'Topic-Font',
+                                  self.font_size, width)
+            bullets = []
+            for s in raw_content:
+                bullets.extend(wordwrap.wrap(s, self._canvas, 'Bullet-Font', self.font_size,
+                              width))
 
-            size = max(
+            max_width = max([
                 self._canvas.stringWidth(s, 'Bullet-Font', self.font_size)
-                for s in res) * len(res)
+                for s in bullets
+            ] + [
+                self._canvas.stringWidth(s, 'Topic-Font', self.font_size)
+                for s in topic
+            ])
+            size = max_width * (len(bullets) + len(topic))
             if size < min_size:
                 min_size = size
-                min_res = res
-        #print(min_res)
-        return min_res
+                content['topic'] = topic
+                content['content'] = bullets
+                content['width'] = max_width
 
     def _get_dimensions(self, content: Topic) -> Tuple[float, float]:
         """
@@ -167,20 +183,11 @@ class CheatsheetGenerator:
         """
         match MediaType(content['media']):
             case MediaType.TEXT:
-                topic = content['topic']
-                bullet_points = self._wrap_string_list(content['content'])
-                content[
-                    'wrapped_content'] = bullet_points  # Update content for future use
-                # content['parsed_content'] = self._parse_style(
-                #     content['wrapped_content'])
-                # #print(content['wrapped_content'])
-                # print(content['parsed_content'])  # use for debugging
+                self._wrap_string_list(content)
+                topic_height = self.font_size * (len(content['topic']) +
+                                                 len(content['content']))
 
-                topic_width = max([self._canvas.stringWidth(topic, "Topic-Font", self.font_size)] + [self._canvas.stringWidth(s, "Bullet-Font", self.font_size) for s in bullet_points]) 
-                topic_height = self.font_size * (len(bullet_points) + 1
-                                                 )  # +1 for topic
-
-                return topic_width, topic_height
+                return content['width'], topic_height
             case MediaType.IMAGE:
                 #content width, content height
                 img = Image.open(content['content'][0])
@@ -213,20 +220,21 @@ class CheatsheetGenerator:
         """
         match MediaType(content['media']):
             case MediaType.TEXT:
-                topic = content['topic']
-                bullet_points = content['wrapped_content']
-
                 y -= self.font_size
-                # Draw the topic in bold
-                self._canvas.setFont("Topic-Font", self.font_size)
-                self._canvas.drawString(x, y, topic)
 
-                self._canvas.setFont(
-                    "Bullet-Font",
-                    self.font_size)  # Smaller font size to fit more text
-                for i, bullet in enumerate(bullet_points):
-                    # Draw bullet point
-                    self._canvas.drawString(x, y-((i+1)*self.font_size), bullet)
+                i = 0
+
+                self._canvas.setFont("Topic-Font", self.font_size)
+                for s in content['topic']:
+                    self._canvas.drawString(x, y - ((i + 1) * self.font_size),
+                                            s)
+                    i += 1
+
+                self._canvas.setFont("Bullet-Font", self.font_size)
+                for s in content['content']:
+                    self._canvas.drawString(x, y - ((i + 1) * self.font_size),
+                                            s)
+                    i += 1
 
             case MediaType.IMAGE:
                 image_path = content['content'][0]
