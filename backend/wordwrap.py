@@ -244,17 +244,9 @@ class TextWrapper:
         # devoted to the long word that we can't handle right now.
 
     def _wrap_chunks(self, chunks):
-        """_wrap_chunks(chunks : [string]) -> [string]
+        """Wrap a sequence of text chunks (tuples) and return a list of lines.
 
-        Wrap a sequence of text chunks and return a list of lines of
-        length 'self.width' or less.  (If 'break_long_words' is false,
-        some lines may be longer than this.)  Chunks correspond roughly
-        to words and the whitespace between them: each chunk is
-        indivisible (modulo 'break_long_words'), but a line break can
-        come between any two chunks.  Chunks should not have internal
-        whitespace; ie. a chunk is either all whitespace or a "word".
-        Whitespace chunks will be removed from the beginning and end of
-        lines, but apart from that whitespace is preserved.
+        Chunks correspond to words or whitespace and include formatting metadata.
         """
         lines = []
         if self.width <= 0:
@@ -268,83 +260,79 @@ class TextWrapper:
                 raise ValueError("placeholder too large for max width")
 
         # Arrange in reverse order so items can be efficiently popped
-        # from a stack of chucks.
         chunks.reverse()
 
         while chunks:
-
-            # Start the list of chunks that will make up the current line.
-            # cur_len is just the length of all the chunks in cur_line.
             cur_line = []
             cur_len = 0
 
-            # Figure out which static string will prefix this line.
+            # Determine the indent for this line
             if lines:
                 indent = self.subsequent_indent
             else:
                 indent = self.initial_indent
 
-            # Maximum width for this line.
+            # Maximum width for this line
             width = self.width - self._width_on_canvas(indent)
 
-            # First chunk on line is whitespace -- drop it, unless this
-            # is the very beginning of the text (ie. no lines started yet).
-            if self.drop_whitespace and chunks[-1].strip() == '' and lines:
-                del chunks[-1]
+            # Drop leading whitespace if needed
+            while self.drop_whitespace and chunks and chunks[-1][0].strip() == "" and lines:
+                chunks.pop()
 
             while chunks:
-                l = self._width_on_canvas(chunks[-1])
+                chunk = chunks[-1]
+                chunk_text = chunk[0]  # Extract the actual text
+                l = self._width_on_canvas(chunk_text)
 
-                # Can at least squeeze this chunk onto the current line.
+                # Can at least squeeze this chunk onto the current line
                 if cur_len + l <= width:
                     cur_line.append(chunks.pop())
                     cur_len += l
-
-                # Nope, this line is full.
                 else:
                     break
 
-            # The current line is full, and the next chunk is too big to
-            # fit on *any* line (not just this one).
-            if chunks and self._width_on_canvas(chunks[-1]) > width:
+            # Handle long words that can't fit on any line
+            if chunks and self._width_on_canvas(chunks[-1][0]) > width:
                 self._handle_long_word(chunks, cur_line, cur_len, width)
-                cur_len = sum(map(self._width_on_canvas, cur_line))
+                cur_len = sum(self._width_on_canvas(c[0]) for c in cur_line)
 
-            # If the last chunk on this line is all whitespace, drop it.
-            if self.drop_whitespace and cur_line and cur_line[-1].strip() == '':
-                cur_len -= self._width_on_canvas(cur_line[-1])
-                del cur_line[-1]
+            # Remove trailing whitespace on the line
+            while self.drop_whitespace and cur_line and cur_line[-1][0].strip() == "":
+                cur_len -= self._width_on_canvas(cur_line[-1][0])
+                cur_line.pop()
 
             if cur_line:
                 if (self.max_lines is None or
                     len(lines) + 1 < self.max_lines or
                     (not chunks or
-                     self.drop_whitespace and
-                     len(chunks) == 1 and
-                     not chunks[0].strip()) and cur_len <= width):
-                    # Convert current line back to a string and store it in
-                    # list of all lines (return value).
-                    lines.append(indent + ''.join(cur_line))
+                    self.drop_whitespace and
+                    len(chunks) == 1 and
+                    chunks[0][0].strip() == "")):
+                    # Add the current line to the result
+                    lines.append(cur_line)
                 else:
                     while cur_line:
-                        if (cur_line[-1].strip() and
+                        if (cur_line[-1][0].strip() and
                             cur_len + self._width_on_canvas(self.placeholder) <= width):
-                            cur_line.append(self.placeholder)
-                            lines.append(indent + ''.join(cur_line))
+                            cur_line.append((self.placeholder, "normal"))
+                            lines.append(cur_line)
                             break
-                        cur_len -= self._width_on_canvas(cur_line[-1])
-                        del cur_line[-1]
+                        cur_len -= self._width_on_canvas(cur_line[-1][0])
+                        cur_line.pop()
                     else:
                         if lines:
-                            prev_line = lines[-1].rstrip()
-                            if (self._width_on_canvas(prev_line + self.placeholder) <=
+                            prev_line = lines[-1]
+                            prev_line_text = ''.join(c[0] for c in prev_line)
+                            if (self._width_on_canvas(prev_line_text + self.placeholder) <=
                                     self.width):
-                                lines[-1] = prev_line + self.placeholder
+                                lines[-1].append((self.placeholder, "normal"))
                                 break
-                        lines.append(indent + self.placeholder.lstrip())
+                        lines.append([(self.placeholder, "normal")])
                     break
 
-        return lines
+            # Convert lines from list[list[tuple]] to list[tuple]
+        return [tuple(line) for line in lines]
+
 
     def _split_chunks(self, text):
         """Split the list of tuples into indivisible chunks."""
@@ -401,7 +389,7 @@ class TextWrapper:
 
 # -- Convenience interface ---------------------------------------------
 
-def wrap(text, canvas, font, font_size, width, **kwargs):
+def wrap_text(text, canvas, font, font_size, width, **kwargs):
     """Wrap a list of tuples into lines as list[tuple]."""
     w = TextWrapper(canvas, font, font_size, width=width, **kwargs)
     return w.wrap(text)

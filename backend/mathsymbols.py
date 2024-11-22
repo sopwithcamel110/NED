@@ -85,15 +85,15 @@ def render_parsed_text(c, x, y, parsed_text, font="Helvetica", base_font_size=12
 
     return x
 
-def styleStringWidth(c: canvas.Canvas, text: List[List[Tuple[str, str]]], font: str, font_size: int) -> int:
+def styleStringWidth(c: canvas.Canvas, text: List[Tuple[str, str]], font: str, font_size: int) -> int:
     """
     Wrapper for stringWidth function that accounts for superscripts and subscript dimension changes.
     Takes a nested list (List[List[Tuple[str, str]]]) of text and styles.
     """
     width = 0
 
-    for sublist in text:  # Iterate through each sublist
-        for content, style in sublist:  # Iterate through tuples in the sublist
+    try:
+        for content, style in text:  # Iterate through tuples in the sublist
             if style == "normal":
                 current_font_size = font_size
             elif style in ["superscript", "subscript", "combined"]:
@@ -104,7 +104,10 @@ def styleStringWidth(c: canvas.Canvas, text: List[List[Tuple[str, str]]], font: 
             # Add the width of the current text with the current font size
             width += c.stringWidth(content, font, current_font_size)
 
-    return width   
+        return int(width)   
+    
+    except: # empty list
+        return 0
 
 if __name__ == "__main__":
     print("Hello there. mathsymbols.py is running")

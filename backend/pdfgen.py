@@ -28,7 +28,7 @@ class MediaType(Enum):
     TEXT = "text"
     IMAGE = "image"
 
-def wrap_string_list(c: canvas.Canvas, font: str, font_size: int, strs: List[str]) -> List[str]:
+def wrap_string_list(c: canvas.Canvas, font: str, font_size: int, strs: List[str]) -> List[List[Tuple[str]]]:
     """Word-wrap strs to maximize space efficiency, and return the word-wrapped list."""
     if not strs:
         return []
@@ -37,14 +37,14 @@ def wrap_string_list(c: canvas.Canvas, font: str, font_size: int, strs: List[str
     min_res = []
 
     parsed_text = parse_style(strs)
-    
-    max_str_len = int(max(styleStringWidth(c, parsed_text, font, font_size)))
+    #print(parsed_text)
+    max_str_len = max(styleStringWidth(c, s, font, font_size) for s in parsed_text)
 
     for width in range(max_str_len//2, max_str_len+1):
         res = []
         for s in parsed_text:
-            res.extend(wordwrap.wrap(s, c, font, font_size, width))
-        #print(res)
+            res.extend(wordwrap.wrap_text(s, c, font, font_size, width))
+        print(res)
         size = max(styleStringWidth(c, s, font, font_size) for s in res) * len(res) 
         if size < min_size:
             min_size = size
@@ -71,11 +71,11 @@ def get_dimensions(c: canvas.Canvas, content: ContentType, font_size: int) -> Tu
             #print(content['content'])
             bullet_points = wrap_string_list(c, 'Bullet-Font', font_size, content['content'])
             content['wrapped_content'] = bullet_points # Update content for future use
-            content['parsed_content'] = parse_style(content['wrapped_content'])
+            #content['parsed_content'] = parse_style(content['wrapped_content'])
             #print(content['wrapped_content'])
             #print(content['parsed_content']) # use for debugging
 
-            topic_width = max([c.styleStringWidth(topic, "Topic-Font", font_size)] + [c.styleStringWidth(content['parsed_content'], "Bullet-Font", font_size)]) 
+            topic_width = max([c.stringWidth(topic, "Topic-Font", font_size)] + [styleStringWidth(c, s, "Bullet-Font", font_size) for s in content['wrapped_content']]) 
             topic_height = font_size * (len(bullet_points)+1) # +1 for topic
             return topic_width, topic_height
         
