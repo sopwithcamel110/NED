@@ -285,19 +285,6 @@ const Home = () => {
                                                         </IconButton>
                                                     </Tooltip>
                                                 </Toolbar>
-                                                <Button
-                                                    component="label"
-                                                    variant="contained"
-                                                    startIcon={<CloudUploadIcon />}
-                                                >
-                                                    Upload Images
-                                                <input
-                                                    type="file"
-                                                    multiple
-                                                    onChange={(event) => console.log(event.target.files)}
-                                                    style={{ display: 'none' }}
-                                                />
-                                                </Button>
                                             </div>
 
                                             <div className="text-box-container">
@@ -332,7 +319,7 @@ const Home = () => {
                                                     }}
                                                     onClick={() => deleteTopic(topicIndex)}
                                                 >
-                                                    <DeleteIcon/> Delete Block
+                                                    <DeleteIcon/>
                                                 </Button>
                                             </div>
 
