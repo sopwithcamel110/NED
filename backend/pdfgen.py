@@ -4,6 +4,7 @@ import io
 import os
 import random
 import tempfile
+import unicodedata
 import re
 
 from PIL import Image
@@ -33,6 +34,7 @@ class StyleType(Enum):
     NORMAL = "normal"
     SUPERSCRIPT = "superscript"
     SUBSCRIPT = "subscript"
+    COMBINED = "combined"
 
 
 class MediaType(Enum):
@@ -77,15 +79,15 @@ class CheatsheetGenerator:
         for item in parsed_text:
             if isinstance(item, tuple) and len(item) == 2:
                 text, style = item
-                if style == "normal":
+                if style == StyleType.NORMAL:
                     self._canvas.setFont(font, self.font_size)
                     self._canvas.drawString(x, y, text)
                     x += self._canvas.stringWidth(text, font, self.font_size)
-                elif style == "superscript":
+                elif style == StyleType.SUPERSCRIPT:
                     self._canvas.setFont(font, self.font_size * SCRIPT_FONT_SIZE)
                     self._canvas.drawString(x, y + self.font_size * Y_SCRIPT, text)
                     x += self._canvas.stringWidth(text, font, self.font_size * SCRIPT_FONT_SIZE)
-                elif style == "subscript":
+                elif style == StyleType.SUBSCRIPT:
                     self._canvas.setFont(font, self.font_size * SCRIPT_FONT_SIZE)
                     self._canvas.drawString(x, y - self.font_size * Y_SCRIPT, text)
                     x += self._canvas.stringWidth(text, font, self.font_size * SCRIPT_FONT_SIZE)
@@ -123,13 +125,13 @@ class CheatsheetGenerator:
 
             for match in matches:
                 if match.group(1):  # Normal text
-                    results.append((match.group(1), "normal"))
+                    results.append((match.group(1), StyleType.NORMAL))
                 elif match.group(2):  # Superscript
-                    results.append((match.group(3), "superscript"))
+                    results.append((match.group(3), StyleType.SUPERSCRIPT))
                 elif match.group(4):  # Subscript
-                    results.append((match.group(5), "subscript"))
+                    results.append((match.group(5), StyleType.SUBSCRIPT))
                 elif match.group(6):  # Combined subscript and superscript
-                    results.append((match.group(6), "combined", match.group(7), match.group(8)))
+                    results.append((match.group(6), StyleType.COMBINED, match.group(7), match.group(8)))
             return results
         
         content['topic'] = _parse_str_style(content['topic'])
@@ -143,7 +145,7 @@ class CheatsheetGenerator:
         width = 0
 
         for content, style in text:  # Iterate through tuples in the sublist
-            if style == "normal":
+            if style == StyleType.NORMAL:
                 current_font_size = self.font_size
             else:
                 current_font_size = self.font_size * SCRIPT_FONT_SIZE
@@ -238,32 +240,14 @@ class CheatsheetGenerator:
             - The maximum width of the content.
             - The total height of the content.
         """
-        match MediaType(content['media']):
-            case MediaType.TEXT:
-                # Convert strs to StyledStrs
-                self._parse_style(content)
+        media = MediaType(content['media'])
+        if media == MediaType.TEXT:
+            topic_height = self.font_size * (len(content['topic']) +
+                                                len(content['content']))
 
-                # Wrap lines
-                self._wrap_string_list(content)
-
-                topic_height = self.font_size * (len(content['topic']) +
-                                                 len(content['content']))
-
-                return content['width'], topic_height
-            case MediaType.IMAGE:
-                #content width, content height
-                img = Image.open(content['content'][0])
-
-                # get width and height
-                image_width = img.width
-                image_height = img.height
-                scale_factor = max(image_height, image_height) / (2 * inch)
-                image_height /= scale_factor
-                image_width /= scale_factor
-
-                content['content'][1] = image_width
-                content['content'][2] = image_height
-                return image_width, image_height
+            return content['width'], topic_height
+        elif media == MediaType.IMAGE:
+            return content['content'][1], content['content'][2]
 
     def _place_content(
         self,
@@ -282,10 +266,7 @@ class CheatsheetGenerator:
         """
         match MediaType(content['media']):
             case MediaType.TEXT:
-                y -= self.font_size
-
                 i = 0
-
                 for s in content['topic']:
                     self._render_parsed_text(x, y - ((i + 1) * self.font_size),
                                             s, 'Topic-Font')
@@ -305,6 +286,37 @@ class CheatsheetGenerator:
                                        y - image_height,
                                        width=image_width,
                                        height=image_height)
+    
+    def _preprocess_data(self) -> None:
+        """Perform necessary preprocessing on the inputted data"""
+        for content in self.topics:
+            media = MediaType(content['media'])
+            if media == MediaType.TEXT:
+                content['topic'] = unicodedata.normalize('NFKD', content['topic'])
+                normalized = []
+                for bullet in content['content']:
+                    normalized.append(unicodedata.normalize('NFKD', bullet).strip())
+                content['content'] = normalized
+
+                # Convert strs to StyledStrs
+                self._parse_style(content)
+
+                # Wrap lines
+                self._wrap_string_list(content)
+            elif media == MediaType.IMAGE:
+                #content width, content height
+                img = Image.open(content['content'][0])
+
+                # get width and height
+                image_width = img.width
+                image_height = img.height
+                scale_factor = max(image_height, image_height) / (2 * inch)
+                image_height /= scale_factor
+                image_width /= scale_factor
+
+                content['content'][1] = image_width
+                content['content'][2] = image_height
+
 
     def create_pdf(self) -> io.BytesIO:
         """
@@ -312,6 +324,8 @@ class CheatsheetGenerator:
         positioning to make efficient use of white space.
         """
         print("Creating cheatsheet...")
+
+        self._preprocess_data()
 
         packer = newPacker(mode=PackingMode.Online, rotation=False)
 
@@ -342,6 +356,9 @@ class CheatsheetGenerator:
 
             # Create new blank page
             self._canvas.showPage()
+
+        # Verify no topics were dropped
+        assert len(packer.rect_list()) == len(self.topics)
 
         # Save the PDF
         self._canvas.save()
