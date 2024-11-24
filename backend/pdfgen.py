@@ -21,7 +21,7 @@ from reportlab.pdfbase import pdfmetrics
 import wordwrap
 
 DEC_PRECISION = 6
-SCRIPT_FONT_SIZE = 0.7 # super/subscript font size
+SCRIPT_FONT_SIZE = 0.7  # super/subscript font size
 Y_SCRIPT = 1 - SCRIPT_FONT_SIZE
 
 # Register fonts
@@ -47,11 +47,12 @@ Topic = Dict[str, Any]
 StyledString = List[Tuple[str, StyleType]]
 
 PATTERN = re.compile(
-    r"([^\^_]+)"              # Normal text
-    r"|(\^)\{([^\}]+)\}"      # Superscripts
-    r"|(_)\{([^\}]+)\}"       # Subscripts
+    r"([^\^_]+)"  # Normal text
+    r"|(\^)\{([^\}]+)\}"  # Superscripts
+    r"|(_)\{([^\}]+)\}"  # Subscripts
     r"|([^\^_]+)_\{([^\}]+)\}\^\{([^\}]+)\}"  # Combined subscript and superscript
 )
+
 
 class CheatsheetGenerator:
     """
@@ -84,31 +85,43 @@ class CheatsheetGenerator:
                     self._canvas.drawString(x, y, text)
                     x += self._canvas.stringWidth(text, font, self.font_size)
                 elif style == StyleType.SUPERSCRIPT:
-                    self._canvas.setFont(font, self.font_size * SCRIPT_FONT_SIZE)
-                    self._canvas.drawString(x, y + self.font_size * Y_SCRIPT, text)
-                    x += self._canvas.stringWidth(text, font, self.font_size * SCRIPT_FONT_SIZE)
+                    self._canvas.setFont(font,
+                                         self.font_size * SCRIPT_FONT_SIZE)
+                    self._canvas.drawString(x, y + self.font_size * Y_SCRIPT,
+                                            text)
+                    x += self._canvas.stringWidth(
+                        text, font, self.font_size * SCRIPT_FONT_SIZE)
                 elif style == StyleType.SUBSCRIPT:
-                    self._canvas.setFont(font, self.font_size * SCRIPT_FONT_SIZE)
-                    self._canvas.drawString(x, y - self.font_size * Y_SCRIPT, text)
-                    x += self._canvas.stringWidth(text, font, self.font_size * SCRIPT_FONT_SIZE)
+                    self._canvas.setFont(font,
+                                         self.font_size * SCRIPT_FONT_SIZE)
+                    self._canvas.drawString(x, y - self.font_size * Y_SCRIPT,
+                                            text)
+                    x += self._canvas.stringWidth(
+                        text, font, self.font_size * SCRIPT_FONT_SIZE)
 
-            elif isinstance(item, tuple) and len(item) == 4: #combined
+            elif isinstance(item, tuple) and len(item) == 4:  #combined
                 base, _, subscript, superscript = item
                 # Render base character
                 self._canvas.setFont(font, self.font_size)
                 self._canvas.drawString(x, y, base)
-                base_width = self._canvas.stringWidth(base, font, self.font_size)
+                base_width = self._canvas.stringWidth(base, font,
+                                                      self.font_size)
                 x += base_width
 
                 # Render subscript
                 self._canvas.setFont(font, self.font_size * SCRIPT_FONT_SIZE)
-                subscript_width = self._canvas.stringWidth(subscript, font, self.font_size * SCRIPT_FONT_SIZE)
-                self._canvas.drawString(x, y - self.font_size * Y_SCRIPT, subscript)
+                subscript_width = self._canvas.stringWidth(
+                    subscript, font, self.font_size * SCRIPT_FONT_SIZE)
+                self._canvas.drawString(x, y - self.font_size * Y_SCRIPT,
+                                        subscript)
 
                 # Render superscript
                 self._canvas.setFont(font, self.font_size * SCRIPT_FONT_SIZE)
-                self._canvas.drawString(x + subscript_width, y + self.font_size * Y_SCRIPT, superscript)
-                x += subscript_width + self._canvas.stringWidth(superscript, font, self.font_size * SCRIPT_FONT_SIZE)
+                self._canvas.drawString(x + subscript_width,
+                                        y + self.font_size * Y_SCRIPT,
+                                        superscript)
+                x += subscript_width + self._canvas.stringWidth(
+                    superscript, font, self.font_size * SCRIPT_FONT_SIZE)
 
         return x
 
@@ -119,6 +132,7 @@ class CheatsheetGenerator:
         Edits content['content'] to a list of lists of tuples (text, style), where style can be 'normal', 'superscript', or 'subscript'.
         This function MUST be called before any string width-reading, or else the width will be inaccurate.
         """
+
         def _parse_str_style(text: str) -> StyledString:
             results = []
             matches = PATTERN.finditer(text)
@@ -131,12 +145,12 @@ class CheatsheetGenerator:
                 elif match.group(4):  # Subscript
                     results.append((match.group(5), StyleType.SUBSCRIPT))
                 elif match.group(6):  # Combined subscript and superscript
-                    results.append((match.group(6), StyleType.COMBINED, match.group(7), match.group(8)))
+                    results.append((match.group(6), StyleType.COMBINED,
+                                    match.group(7), match.group(8)))
             return results
-        
-        content['topic'] = _parse_str_style(content['topic'])
-        content['content'] = [_parse_str_style(s) for s in content['content']]
 
+        content['topic'] = [_parse_str_style(content['topic'])]
+        content['content'] = [_parse_str_style(s) for s in content['content']]
 
     def _styleStringWidth(self, text: StyledString, font: str) -> int:
         """
@@ -155,9 +169,9 @@ class CheatsheetGenerator:
 
         return width
 
-
     def _wrap_string_list(self, content: Topic) -> None:
         """Word-wrap topic to maximize space efficiency."""
+
         def fake_wrap(text: StyledString, font: str, width: int):
             """
             Wrap the stringified version of the styled string `text`. Then, reconstruct the 
@@ -166,9 +180,9 @@ class CheatsheetGenerator:
             "xy" and "x^y" when choosing where to wrap. This does not cause functional issues, 
             since we are overcompensating.
             """
-            wrapped = wordwrap.wrap(''.join(p[0] for p in text), self._canvas, font,
-                                  self.font_size, width)
-            
+            wrapped = wordwrap.wrap(''.join(p[0] for p in text), self._canvas,
+                                    font, self.font_size, width, break_long_words=False)
+
             res = []
             i = 0
             c = 0
@@ -191,19 +205,18 @@ class CheatsheetGenerator:
                 res.append(styled_str)
 
             return res
-        
+
         min_size = float('inf')
 
-        raw_topic = content['topic']
-        content['topic'] = [raw_topic]
+        raw_topic = content['topic'][0]
         raw_content = content['content']
 
         max_str_len = max(
-                self._styleStringWidth(raw_topic, 'Topic-Font'),
-                max(
-                    (self._styleStringWidth(s, 'Bullet-Font')
-                    for s in raw_content), default=float('-inf')))
-        
+            self._styleStringWidth(raw_topic, 'Topic-Font'),
+            max((self._styleStringWidth(s, 'Bullet-Font')
+                 for s in raw_content),
+                default=float('-inf')))
+
         max_str_len = int(min(max_str_len, self.width))
         content['width'] = max_str_len
 
@@ -213,13 +226,9 @@ class CheatsheetGenerator:
             for s in raw_content:
                 bullets.extend(fake_wrap(s, 'Bullet-Font', width))
 
-            max_width = max([
-                self._styleStringWidth(s, 'Bullet-Font')
-                for s in bullets
-            ] + [
-                self._styleStringWidth(s, 'Topic-Font')
-                for s in topic
-            ])
+            max_width = max(
+                [self._styleStringWidth(s, 'Bullet-Font') for s in bullets] +
+                [self._styleStringWidth(s, 'Topic-Font') for s in topic])
             size = max_width * (len(bullets) + len(topic))
             if size < min_size:
                 min_size = size
@@ -243,7 +252,7 @@ class CheatsheetGenerator:
         media = MediaType(content['media'])
         if media == MediaType.TEXT:
             topic_height = self.font_size * (len(content['topic']) +
-                                                len(content['content']))
+                                             len(content['content']))
 
             return content['width'], topic_height
         elif media == MediaType.IMAGE:
@@ -269,12 +278,12 @@ class CheatsheetGenerator:
                 i = 0
                 for s in content['topic']:
                     self._render_parsed_text(x, y - ((i + 1) * self.font_size),
-                                            s, 'Topic-Font')
+                                             s, 'Topic-Font')
                     i += 1
 
                 for s in content['content']:
                     self._render_parsed_text(x, y - ((i + 1) * self.font_size),
-                                            s, 'Bullet-Font')
+                                             s, 'Bullet-Font')
                     i += 1
 
             case MediaType.IMAGE:
@@ -286,16 +295,19 @@ class CheatsheetGenerator:
                                        y - image_height,
                                        width=image_width,
                                        height=image_height)
-    
+
     def _preprocess_data(self) -> None:
         """Perform necessary preprocessing on the inputted data"""
         for content in self.topics:
             media = MediaType(content['media'])
             if media == MediaType.TEXT:
-                content['topic'] = unicodedata.normalize('NFKD', content['topic'])
+                # Normalize unicode
+                content['topic'] = unicodedata.normalize(
+                    'NFKD', content['topic'])
                 normalized = []
                 for bullet in content['content']:
-                    normalized.append(unicodedata.normalize('NFKD', bullet).strip())
+                    normalized.append(
+                        unicodedata.normalize('NFKC', bullet).strip())
                 content['content'] = normalized
 
                 # Convert strs to StyledStrs
@@ -316,7 +328,6 @@ class CheatsheetGenerator:
 
                 content['content'][1] = image_width
                 content['content'][2] = image_height
-
 
     def create_pdf(self) -> io.BytesIO:
         """
