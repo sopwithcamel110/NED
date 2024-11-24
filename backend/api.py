@@ -1,7 +1,7 @@
 # Import modules
 from flask import Flask, jsonify, request, session, send_file
 from flask_cors import CORS
-from pdfgen import create_pdf
+from pdfgen import CheatsheetGenerator
 from flask_restful import Resource, Api
 from flask_session import Session
 
@@ -22,7 +22,9 @@ class Ping(Resource):
 class CreatePDF(Resource):
     def post(self):
         content = request.json
-        buf = create_cheatsheet_pdf(content)
+
+        cg = CheatsheetGenerator(content)
+        buf = cg.create_pdf()
         #buf = open('example/dummy.pdf', 'rb')
 
         return send_file(buf, mimetype='application/pdf', as_attachment=False, download_name="generated.pdf")
