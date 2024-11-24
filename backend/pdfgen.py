@@ -362,7 +362,7 @@ class CheatsheetGenerator:
                 h = float(rect.height)
                 rid = rect.rid
 
-                content = data_dict[rid]
+                content = self.topics[rid]
                 self._place_content(content, x, y)
 
             # Create new blank page
