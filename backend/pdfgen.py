@@ -28,6 +28,7 @@ Y_SCRIPT = 1 - SCRIPT_FONT_SIZE
 
 DEFAULT_FONT_SIZE = 8 # temp
 MIN_FONT_SIZE = 5 # temp
+REDUCE_MULT = 0.1 # multiplier to reduce font size
 
 # Register fonts
 pdfmetrics.registerFont(TTFont('Bullet-Font', 'fonts/NotoSans-Regular.ttf'))
@@ -132,36 +133,18 @@ class CheatsheetGenerator:
 
         return x
 
-    def _lower_font(self):
-        """
-        lowers font size if number of pdf pages are higher then max page count 
-        set by user
-        """
-        self.font_size -= 1
-
     def _reset_canvas_and_buffer(self):
         """Resets the canvas and buffer for PDF regeneration."""
         self._pdf_buffer = io.BytesIO()
         self._canvas = canvas.Canvas(self._pdf_buffer, pagesize=A4)
 
-    def _check_pdf_pages(self, pdf_buffer: io.BytesIO) -> bool:
-        """
-        Checks whether the number of pages in a PDF stored in an io.BytesIO buffer
-        exceeds the maximum allowed pages.
-
-        :param pdf_buffer: io.BytesIO containing the PDF data.
-        :return: True if the PDF page count is within the allowed limit, False otherwise.
-        """
-        try:
-            # Open the PDF from the buffer
-            pdf_document = fitz.open(stream=pdf_buffer, filetype="pdf")
-            
-            # Check page count
-            return pdf_document.page_count <= self.max_page
-        except Exception as e:
-            print(f"Error checking PDF pages: {e}")
-            return False
-
+    def _lower_font(self, packer) -> float:
+        """Lowers font size depending on how many topics are over page limit"""
+        _topics = 0
+        for i in range(self.max_page, len(packer)):
+            _topics += len(packer[i])
+        
+        self.font_size = self.font_size - (_topics * REDUCE_MULT)
 
     @staticmethod
     def _parse_style(content: Topic) -> None:
@@ -380,6 +363,7 @@ class CheatsheetGenerator:
             try:
                 print(f"Creating cheatsheet with font size {self.font_size}...")
                 self.topics = copy.deepcopy(self.original_topics)
+                
                 # Reset the canvas and buffer
                 self._reset_canvas_and_buffer()
 
@@ -423,20 +407,20 @@ class CheatsheetGenerator:
                 self._pdf_buffer.seek(0)
 
                 # Check the page count
-                if self._check_pdf_pages(self._pdf_buffer):
+                if self.max_page >= len(packer):
                     print("PDF created successfully within page limit.")
                     return self._pdf_buffer
 
                 # Reduce the font size if the page count exceeds the limit
                 print("PDF exceeds the page limit. Reducing font size...")
-                self._lower_font()
+                self._lower_font(packer)
 
             except Exception as e:
                 print(f"Error during PDF creation: {e}")
                 raise
 
         raise ValueError("Unable to create a PDF within the page limit using the available font sizes.")
-
+        return self._pdf_buffer # return whatever works with some error message for user
 
 
 if __name__ == "__main__":
