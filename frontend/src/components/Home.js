@@ -35,16 +35,7 @@ const Home = () => {
     const [symbolMenuAnchorEl, setSymbolMenuAnchorEl] = useState(null); 
     const [selectedTopicIndex, setSelectedTopicIndex] = useState(null);
     const [selectedTextIndex, setSelectedTextIndex] = useState(null); 
-
-    const [imageList, setImageList] = useState([]);
-
-    const handleAddImage = (event) => {
-        const file = event.target.files[0];
-        console.log(file)
-        if (file) {
-            setImageList((prevList) => [...prevList, URL.createObjectURL(file)]);
-        }
-    };
+    
     const updateTopics = (newTopics) => {
         setTopics(newTopics);
     };
