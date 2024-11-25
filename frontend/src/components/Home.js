@@ -35,6 +35,14 @@ const Home = () => {
     const [symbolMenuAnchorEl, setSymbolMenuAnchorEl] = useState(null); 
     const [selectedTopicIndex, setSelectedTopicIndex] = useState(null);
     const [selectedTextIndex, setSelectedTextIndex] = useState(null); 
+
+    const [maxPages, setMaxPages] = useState(null); // State for "Max pages"
+
+    const handleMaxPagesChange = (event) => {
+        const value = event.target.value;
+        setMaxPages(value === "" ? null : parseInt(value));
+    };
+
     
     const updateTopics = (newTopics) => {
         setTopics(newTopics);
@@ -60,6 +68,7 @@ const Home = () => {
       const collectAndSaveTopics = async () => {
         const formData = new FormData();
 
+        formData.append(`meta_max_pages`, maxPages);
         topics.forEach((topic, index) => {
             if (topic.file) {
                 // If topic contains a File object
@@ -235,6 +244,16 @@ const Home = () => {
         </div>
         {/* Main Content Section */}
         <div id="content-section" className="content-section">
+            <TextField
+                        id="max-pages-input"
+                        label="Max Pages"
+                        type="number"
+                        variant="outlined"
+                        value={maxPages !== null ? maxPages : ""}
+                        onChange={handleMaxPagesChange}
+                        style={{ marginBottom: '20px', width: '200px' }}
+                        helperText="Optional. Defaults to infinite."
+                    />
             <h2>Enter Notes Here</h2>
             <DragDropContext onDragEnd={onDragEnd}>
                 <Droppable droppableId="droppable" direction="vertical">

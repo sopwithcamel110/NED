@@ -30,7 +30,13 @@ class Ping(Resource):
 class CreatePDF(Resource):
 
     def post(self):
-        topics = [json.loads(text) for text in request.form.values()]
+        topics = []
+        meta = {}
+        for key, value in request.form.items():
+            if key.startswith('data_'):
+                topics.append(json.loads(value))
+            elif key.startswith('meta_'):
+                meta[key[5:]] = json.loads(value)
 
         # Process files
         for file in request.files.values():
