@@ -7,35 +7,44 @@ import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import PlusIcon from '@mui/icons-material/Add';
 import FormatListNumberedIcon from '@mui/icons-material/FormatListNumbered';
 import FormatListBulletedIcon from '@mui/icons-material/FormatListBulleted';
-import EmojiSymbolsIcon from '@mui/icons-material/EmojiSymbols';
+import SuperscriptIcon from '@mui/icons-material/Superscript';
+import SubscriptIcon from '@mui/icons-material/Subscript';
+import QuestionMarkIcon from '@mui/icons-material/QuestionMark';
+// import EmojiSymbolsIcon from '@mui/icons-material/EmojiSymbols';
 import NotInterestedIcon from '@mui/icons-material/NotInterested';
 import CodeIcon from '@mui/icons-material/Code';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
-import { TextField, IconButton, Button, Toolbar, Tooltip } from '@mui/material';
-import { Menu, MenuItem } from '@mui/material';
+import { TextField, IconButton, Button, Toolbar, Tooltip, Menu, MenuItem } from '@mui/material';
+import FunctionsIcon from '@mui/icons-material/Functions';
 import Grid from '@mui/material/Grid2';
 import './Home.css';
 
 const API_BASE_URL = "http://localhost:5000"; // Replace with your actual backend URL
 
 const Home = () => {
-    const [topics, setTopics] = useState([]);
+    const [topics, setTopics] = useState(() => {
+        const savedTopics = JSON.parse(localStorage.getItem('topics'));
+
+        return Array.isArray(savedTopics) && savedTopics.length > 0 ? savedTopics : [{ topic: '', textSegments: [''], media: 'text' }];
+    });
     const [anchorEl, setAnchorEl] = useState(null); // For symbol menu
     const contentRef = useRef(null);
     const navigate = useNavigate();
 
+    //math symbols
+    const [symbolMenuAnchorEl, setSymbolMenuAnchorEl] = useState(null); 
+    const [selectedTopicIndex, setSelectedTopicIndex] = useState(null);
+    const [selectedTextIndex, setSelectedTextIndex] = useState(null); 
+    
     const updateTopics = (newTopics) => {
         setTopics(newTopics);
     };
 
     // Save a new topic to the backend
-    const saveTopics = async (newTopics) => {
+    const saveTopics = async (formData) => {
         var response = await fetch(API_BASE_URL + "/createpdf", {
             method: "POST",
-            headers: {
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify(newTopics),
+            body: formData,
         });
         
         if (response.ok) {
@@ -49,23 +58,35 @@ const Home = () => {
       };
       
       const collectAndSaveTopics = async () => {
-        const topicData = topics.map((topicObj) => ({
-          'topic': topicObj.topic,
-          'content': topicObj.textSegments[0].split('\n'),
-          'media': 'text',
-        }));
+        const formData = new FormData();
+
+        topics.forEach((topic, index) => {
+            if (topic.file) {
+                // If topic contains a File object
+                formData.append(`file_${index}`, topic.file);
+            } else {
+                // If topic is a dictionary
+                formData.append(`data_${index}`, JSON.stringify({
+                    'topic': topic.topic,
+                    'content': topic.textSegments[0].split('\n'),
+                    'media': topic.media,
+                  }));
+            }
+        });
       
-        return await saveTopics(topicData);
+        return await saveTopics(formData);
       };
 
     // Delete a topic from the backend
-    const deleteTopic = async (topicId) => {
-        try {
-            await fetch(`${API_BASE_URL}/${topicId}`, { method: 'DELETE' });
-            console.log("Topic deleted successfully");
-        } catch (error) {
-            console.error("Error deleting topic:", error);
-        }
+    const deleteTopic = async (index) => {
+        setTopics((prevTopics) => {
+            // Create a new array without the topic at the given index
+            const updatedTopics = prevTopics.filter((_, i) => i !== index);
+            // Save the updated array to localStorage
+            localStorage.setItem('topics', JSON.stringify(updatedTopics));
+            // Return the updated array to update state
+            return updatedTopics;
+        });
     };
 
     const handleTopicChange = (index, value) => {
@@ -80,8 +101,14 @@ const Home = () => {
         updateTopics(newTopics);
     };
 
-    const addNewTopic = () => {
-        const newTopic = { topic: '', textSegments: [''] };
+    const addTextTopic = () => {
+        const newTopic = { topic: '', textSegments: [''], media: 'text' };
+        setTopics([...topics, newTopic]);
+    };
+
+    const addImageTopic = (event) => {
+        const file = event.target.files[0];
+        const newTopic = { url: URL.createObjectURL(file), file, media: 'image' };
         setTopics([...topics, newTopic]);
     };
 
@@ -96,7 +123,7 @@ const Home = () => {
 
     const handleNext = async () => {
         // Make sure topics are valid before saving
-        const allValid = topics.every(
+        const allValid = topics.filter((t) => t.media == 'text').every(
           (topic) => topic.topic.trim() !== '' && topic.textSegments.some((segment) => segment.trim() !== '')
         );
         
@@ -104,6 +131,7 @@ const Home = () => {
           alert('Please ensure all topics have titles and at least one text segment.');
           return;
         }
+        localStorage.setItem('topics', JSON.stringify(topics));
         
         var location = await collectAndSaveTopics();
         navigate('/preview', { state: { pdfLocation: location } });
@@ -138,15 +166,60 @@ const Home = () => {
         updateTopics(updatedTopics);
     };
 
-    const symbols = ['★', '✔', '♛', '♪', '☀', '♥', '☺', '✈'];
-    const handleSymbolClick = (event) => setAnchorEl(event.currentTarget);
-    const handleSymbolSelect = (symbol, topicIndex, textIndex) => {
+    const insertExponent = (topicIndex, textIndex) => { //exponent button
         const updatedTopics = [...topics];
         const currentText = updatedTopics[topicIndex].textSegments[textIndex];
-        updatedTopics[topicIndex].textSegments[textIndex] = currentText + symbol;
-        setTopics(updatedTopics);
-        setAnchorEl(null);
+        updatedTopics[topicIndex].textSegments[textIndex] = currentText + '^{}';
+        updateTopics(updatedTopics);
     };
+
+
+    const insertSubscript = (topicIndex, textIndex) => {  //subscript Button
+        const updatedTopics = [...topics];
+        const currentText = updatedTopics[topicIndex].textSegments[textIndex];
+        updatedTopics[topicIndex].textSegments[textIndex] = currentText + '_{}';
+        updateTopics(updatedTopics);
+    };
+
+    const insertSQRT = (topicIndex, textIndex) => {  //Square root bttn
+        const updatedTopics = [...topics];
+        const currentText = updatedTopics[topicIndex].textSegments[textIndex];
+        updatedTopics[topicIndex].textSegments[textIndex] = currentText + '√{}';
+        updateTopics(updatedTopics);
+    };
+
+    const insertNoWrap = (topicIndex, textIndex) => {  //no txt wrap
+        const updatedTopics = [...topics];
+        const currentText = updatedTopics[topicIndex].textSegments[textIndex];
+        updatedTopics[topicIndex].textSegments[textIndex] = currentText + '\\\\';
+        updateTopics(updatedTopics);
+    };
+    
+    const insertCodeBlock = (topicIndex, textIndex) => {  //no txt wrap
+        const updatedTopics = [...topics];
+        const currentText = updatedTopics[topicIndex].textSegments[textIndex];
+        updatedTopics[topicIndex].textSegments[textIndex] = currentText + '<<< >>>';
+        updateTopics(updatedTopics);
+    };
+    //math symbol dropdown menu
+    const handleSymbolMenuOpen = (event, topicIndex, textIndex) => {
+        setSymbolMenuAnchorEl(event.currentTarget);
+        setSelectedTopicIndex(topicIndex);
+        setSelectedTextIndex(textIndex);
+    };
+    
+    const handleSymbolMenuClose = () => {
+        setSymbolMenuAnchorEl(null);
+    };
+    
+    const handleSymbolSelect = (symbol) => {
+        const updatedTopics = [...topics];
+        const currentText = updatedTopics[selectedTopicIndex].textSegments[selectedTextIndex];
+        updatedTopics[selectedTopicIndex].textSegments[selectedTextIndex] = currentText + symbol;
+        updateTopics(updatedTopics);
+        handleSymbolMenuClose();
+    };
+    
 
     return (
         <div className="home-container" >
@@ -175,8 +248,8 @@ const Home = () => {
                                             {...provided.draggableProps}
                                             {...provided.dragHandleProps}
                                             className="topic-container"
-                                        >
-                                            <div className="topic-row">
+                                        >   
+                                            {topicObj.media == 'text' ? <><div className="topic-row">
                                                 <TextField
                                                     id="outlined-basic"
                                                     label="Enter Topic"
@@ -198,60 +271,61 @@ const Home = () => {
                                                         </IconButton>
                                                     </Tooltip>
                                                     <Tooltip title="Code Block" arrow>
-                                                        <IconButton onClick={() => applyFormatting('code', topicIndex, textIndex)}>
+                                                        <IconButton onClick={() => insertCodeBlock(topicIndex, 0)}>
                                                             <CodeIcon />
                                                         </IconButton>
                                                     </Tooltip>
                                                     <Tooltip title="No Text Wrap" arrow>
-                                                        <IconButton>
+                                                        <IconButton onClick={() => insertNoWrap(topicIndex, 0)}>
                                                             <NotInterestedIcon />
                                                         </IconButton>
                                                     </Tooltip>
+                                                    <Tooltip title="Exponent" arrow>
+                                                        <IconButton onClick={() => insertExponent(topicIndex, 0)}>
+                                                            <SuperscriptIcon/>
+                                                        </IconButton>
+                                                    </Tooltip>
+                                                    <Tooltip title="Subscript" arrow>
+                                                        <IconButton onClick={() => insertSubscript(topicIndex, 0)}>
+                                                            <SubscriptIcon/>
+                                                        </IconButton>
+                                                    </Tooltip>
+                                                    <Tooltip title="Square Root" arrow>
+                                                        <IconButton onClick={() => insertSQRT(topicIndex, 0)}>
+                                                            <QuestionMarkIcon/>
+                                                        </IconButton>
+                                                    </Tooltip>
 
-                                                    <IconButton onClick={handleSymbolClick}><EmojiSymbolsIcon /></IconButton>
-                                                        <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={() => setAnchorEl(null)}>
-                                                            <Grid container spacing={1} style={{ maxHeight: '200px', overflow: 'auto' }}>
-                                                                {symbols.map((symbol, index) => (
-                                                                    <Grid item xs={3} key={index}>
-                                                                        <MenuItem onClick={() => handleSymbolSelect(symbol, topicIndex, topicIndex)}>{symbol}</MenuItem>
-                                                                    </Grid>
-                                                                ))}
-                                                            </Grid>
-                                                        </Menu>
+                                                    <Tooltip title="Insert Symbol" arrow>
+                                                        <IconButton onClick={(e) => handleSymbolMenuOpen(e, topicIndex, 0)}>
+                                                            <FunctionsIcon />
+                                                        </IconButton>
+                                                    </Tooltip>
                                                 </Toolbar>
-                                                <Button
-                                                    component="label"
-                                                    variant="contained"
-                                                    startIcon={<CloudUploadIcon />}
-                                                >
-                                                    Upload Images
-                                                <input
-                                                    type="file"
-                                                    multiple
-                                                    onChange={(event) => console.log(event.target.files)}
-                                                    style={{ display: 'none' }}
-                                                />
-                                                </Button>
                                             </div>
 
                                             <div className="text-box-container">
                                                 {topicObj.textSegments.map((segment, textIndex) => (
-                                                    <div key={textIndex} className="text-box">
-                                                        <TextField
-                                                            id="outlined-multiline-static"
-                                                            label="Enter Text"
-                                                            multiline
-                                                            rows={12}
-                                                            value={segment}
-                                                            style={{ paddingBottom: '2px' }}
-                                                            onChange={(e) =>
-                                                                handleTextChange(topicIndex, textIndex, e.target.value)
-                                                            }
-                                                            className="consistent-textarea"
-                                                        />
-                                                    </div>
+                                                <div key={textIndex} className="text-box">
+                                                    <TextField
+                                                        id={`text-segment-${topicIndex}-${textIndex}`}
+                                                        label="Enter Text"
+                                                        multiline
+                                                        rows={12}
+                                                        value={segment}
+                                                        style={{ paddingBottom: '2px' }}
+                                                        onChange={(e) => handleTextChange(topicIndex, textIndex, e.target.value)}
+                                                        className="consistent-textarea"
+                                                    />
+                                                </div>
                                                 ))}
-                                            </div>
+                                            </div></>:<><img
+                                    key={topicIndex}
+                                    src={topicObj.url}
+                                    alt={`Uploaded ${topicIndex + 1}`}
+                                    style={{ width: '100px', margin: '10px' }}
+                                /></>}
+                                            
                                             <div className="button-row" style={{ display: 'flex', justifyContent: 'flex-end' }}>
                                                 <Button 
                                                     variant="outlined" 
@@ -268,7 +342,7 @@ const Home = () => {
                                                     }}
                                                     onClick={() => deleteTopic(topicIndex)}
                                                 >
-                                                    <DeleteIcon/> Delete Block
+                                                    <DeleteIcon/>
                                                 </Button>
                                             </div>
 
@@ -281,31 +355,68 @@ const Home = () => {
                     )}
                 </Droppable>
             </DragDropContext>
+                
+            <Menu
+                anchorEl={symbolMenuAnchorEl}
+                open={Boolean(symbolMenuAnchorEl)}
+                onClose={handleSymbolMenuClose}
+                PaperProps={{
+                    style: {
+                        maxHeight: '400px',
+                        overflowY: 'auto', 
+                        width: '500px',
+                    },
+                }}
+            >
+                <Grid
+                    container
+                    spacing={1}
+                    style={{ padding: '10px', display: 'flex', flexWrap: 'wrap' }}
+                >
+                    {[
+                        '∞', 'π', 'e', 'Σ', 'Ω', 'Δ', '∑', '√', '±', '∩',
+                        '∪', '∈', '∉', '⊂', '⊃', '⊆', '⊇', '∃', '∀', '∧',
+                        '∨', '⇒', '⇔', '∇', '∂', '⊥', '⊤', '≠', '≈', '≡',
+                        '≪', '≫', '∝', '∼', '≈', '∫', '∮', '∅', '∴', '⊕',
+                        '⊗', '⊘', '⊔', '⊓', '∧', '∨', '∼', '⊂', '⊃', '⋅',
+                        '⊔', '⊓', 'ℵ', 'ℝ', 'ℕ', 'ℤ', 'ℚ', 'ℂ', 'ℍ', '↔',
+                        '←', '→', '∘', 
+                    ].map(function(symbol, index) {
+                        return (
+                            <Grid item xs={2} sm={1} md={1} key={index}>
+                                <MenuItem
+                                    onClick={function() { handleSymbolSelect(symbol); }}
+                                    style={{
+                                        display: 'flex',
+                                        justifyContent: 'center',
+                                        padding: '5px 10px',
+                                    }}
+                                >
+                                    {symbol}
+                                </MenuItem>
+                            </Grid>
+                        );
+                    })}
+                </Grid>
+            </Menu>
 
             <div className="footer-buttons2">
-                <Button 
-                    variant="outlined"
-                    onClick={addNewTopic} 
-                    style={{
-                        border: '1px solid #333',
-                        padding: '20px 20px',
-                        fontSize: '2rem',
-                        minWidth: '50px',
-                        transition: 'background-color 0.3s ease',
-                        backgroundColor: 'white',
-                        color: 'black'
-                    }}
-                    onMouseEnter={(e) => {
-                        e.target.style.backgroundColor = 'lightgray';
-                    }}
-                    onMouseLeave={(e) => {
-                        e.target.style.backgroundColor = 'white';
-                    }}
-                >
-                    <PlusIcon style={{ backgroundColor: 'transparent' }} />
+                <Button variant="contained" component="span" onClick={addTextTopic}>
+                    Add Text
                 </Button>
+                <label htmlFor="image-upload">
+                <input
+                    accept="image/*"
+                    id="image-upload"
+                    type="file"
+                    style={{ display: 'none' }}
+                    onChange={addImageTopic}
+                />
+                <Button variant="contained" component="span">
+                    Add Image
+                </Button>
+                </label>
             </div>
-
 
             <div className="footer-buttons">
                 <IconButton onClick={handleNext} aria-label="next">
