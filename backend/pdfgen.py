@@ -257,7 +257,6 @@ class CheatsheetGenerator:
 
             return content['width'], topic_height
         elif media == MediaType.IMAGE:
-            print(content['width'], content['height'], 2*inch)
             return content['width'], content['height']
 
     def _place_content(

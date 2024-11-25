@@ -131,6 +131,7 @@ const Home = () => {
           alert('Please ensure all topics have titles and at least one text segment.');
           return;
         }
+        localStorage.setItem('topics', JSON.stringify(topics));
         
         var location = await collectAndSaveTopics();
         navigate('/preview', { state: { pdfLocation: location } });
