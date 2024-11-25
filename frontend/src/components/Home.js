@@ -23,8 +23,9 @@ const API_BASE_URL = "http://localhost:5000"; // Replace with your actual backen
 
 const Home = () => {
     const [topics, setTopics] = useState(() => {
-        const savedTopics = localStorage.getItem('topics');
-        return savedTopics ? JSON.parse(savedTopics) : [{ topic: '', textSegments: [''] }];
+        const savedTopics = JSON.parse(localStorage.getItem('topics'));
+
+        return Array.isArray(savedTopics) && savedTopics.length > 0 ? savedTopics : [{ topic: '', textSegments: [''], media: 'text' }];
     });
     const [anchorEl, setAnchorEl] = useState(null); // For symbol menu
     const contentRef = useRef(null);
@@ -35,18 +36,24 @@ const Home = () => {
     const [selectedTopicIndex, setSelectedTopicIndex] = useState(null);
     const [selectedTextIndex, setSelectedTextIndex] = useState(null); 
 
+    const [imageList, setImageList] = useState([]);
+
+    const handleAddImage = (event) => {
+        const file = event.target.files[0];
+        console.log(file)
+        if (file) {
+            setImageList((prevList) => [...prevList, URL.createObjectURL(file)]);
+        }
+    };
     const updateTopics = (newTopics) => {
         setTopics(newTopics);
     };
 
     // Save a new topic to the backend
-    const saveTopics = async (newTopics) => {
+    const saveTopics = async (formData) => {
         var response = await fetch(API_BASE_URL + "/createpdf", {
             method: "POST",
-            headers: {
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify(newTopics),
+            body: formData,
         });
         
         if (response.ok) {
@@ -60,23 +67,35 @@ const Home = () => {
       };
       
       const collectAndSaveTopics = async () => {
-        const topicData = topics.map((topicObj) => ({
-          'topic': topicObj.topic,
-          'content': topicObj.textSegments[0].split('\n'),
-          'media': 'text',
-        }));
+        const formData = new FormData();
+
+        topics.forEach((topic, index) => {
+            if (topic.file) {
+                // If topic contains a File object
+                formData.append(`file_${index}`, topic.file);
+            } else {
+                // If topic is a dictionary
+                formData.append(`data_${index}`, JSON.stringify({
+                    'topic': topic.topic,
+                    'content': topic.textSegments[0].split('\n'),
+                    'media': topic.media,
+                  }));
+            }
+        });
       
-        return await saveTopics(topicData);
+        return await saveTopics(formData);
       };
 
     // Delete a topic from the backend
-    const deleteTopic = async (topicId) => {
-        try {
-            await fetch(`${API_BASE_URL}/${topicId}`, { method: 'DELETE' });
-            console.log("Topic deleted successfully");
-        } catch (error) {
-            console.error("Error deleting topic:", error);
-        }
+    const deleteTopic = async (index) => {
+        setTopics((prevTopics) => {
+            // Create a new array without the topic at the given index
+            const updatedTopics = prevTopics.filter((_, i) => i !== index);
+            // Save the updated array to localStorage
+            localStorage.setItem('topics', JSON.stringify(updatedTopics));
+            // Return the updated array to update state
+            return updatedTopics;
+        });
     };
 
     const handleTopicChange = (index, value) => {
@@ -91,8 +110,14 @@ const Home = () => {
         updateTopics(newTopics);
     };
 
-    const addNewTopic = () => {
-        const newTopic = { topic: '', textSegments: [''] };
+    const addTextTopic = () => {
+        const newTopic = { topic: '', textSegments: [''], media: 'text' };
+        setTopics([...topics, newTopic]);
+    };
+
+    const addImageTopic = (event) => {
+        const file = event.target.files[0];
+        const newTopic = { url: URL.createObjectURL(file), file, media: 'image' };
         setTopics([...topics, newTopic]);
     };
 
@@ -107,7 +132,7 @@ const Home = () => {
 
     const handleNext = async () => {
         // Make sure topics are valid before saving
-        const allValid = topics.every(
+        const allValid = topics.filter((t) => t.media == 'text').every(
           (topic) => topic.topic.trim() !== '' && topic.textSegments.some((segment) => segment.trim() !== '')
         );
         
@@ -231,8 +256,8 @@ const Home = () => {
                                             {...provided.draggableProps}
                                             {...provided.dragHandleProps}
                                             className="topic-container"
-                                        >
-                                            <div className="topic-row">
+                                        >   
+                                            {topicObj.media == 'text' ? <><div className="topic-row">
                                                 <TextField
                                                     id="outlined-basic"
                                                     label="Enter Topic"
@@ -302,7 +327,13 @@ const Home = () => {
                                                     />
                                                 </div>
                                                 ))}
-                                            </div>
+                                            </div></>:<><img
+                                    key={topicIndex}
+                                    src={topicObj.url}
+                                    alt={`Uploaded ${topicIndex + 1}`}
+                                    style={{ width: '100px', margin: '10px' }}
+                                /></>}
+                                            
                                             <div className="button-row" style={{ display: 'flex', justifyContent: 'flex-end' }}>
                                                 <Button 
                                                     variant="outlined" 
@@ -378,27 +409,21 @@ const Home = () => {
             </Menu>
 
             <div className="footer-buttons2">
-                <Button 
-                    variant="outlined"
-                    onClick={addNewTopic} 
-                    style={{
-                        border: '1px solid #333',
-                        padding: '20px 20px',
-                        fontSize: '2rem',
-                        minWidth: '50px',
-                        transition: 'background-color 0.3s ease',
-                        backgroundColor: 'white',
-                        color: 'black'
-                    }}
-                    onMouseEnter={(e) => {
-                        e.target.style.backgroundColor = 'lightgray';
-                    }}
-                    onMouseLeave={(e) => {
-                        e.target.style.backgroundColor = 'white';
-                    }}
-                >
-                    <PlusIcon style={{ backgroundColor: 'transparent' }} />
+                <Button variant="contained" component="span" onClick={addTextTopic}>
+                    Add Text
                 </Button>
+                <label htmlFor="image-upload">
+                <input
+                    accept="image/*"
+                    id="image-upload"
+                    type="file"
+                    style={{ display: 'none' }}
+                    onChange={addImageTopic}
+                />
+                <Button variant="contained" component="span">
+                    Add Image
+                </Button>
+                </label>
             </div>
 
             <div className="footer-buttons">
