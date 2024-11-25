@@ -6,6 +6,8 @@ import random
 import tempfile
 import unicodedata
 import re
+import fitz
+import copy
 
 from PIL import Image
 from typing import Any, Dict, List, Tuple
@@ -23,6 +25,9 @@ import wordwrap
 DEC_PRECISION = 6
 SCRIPT_FONT_SIZE = 0.7  # super/subscript font size
 Y_SCRIPT = 1 - SCRIPT_FONT_SIZE
+
+DEFAULT_FONT_SIZE = 8 # temp
+MIN_FONT_SIZE = 5 # temp
 
 # Register fonts
 pdfmetrics.registerFont(TTFont('Bullet-Font', 'fonts/NotoSans-Regular.ttf'))
@@ -63,12 +68,14 @@ class CheatsheetGenerator:
         self,
         topics: List[Topic],
         dimensions: Tuple[float, float] = A4,
-        font_size: int = 5,
+        max_page: int = 2 # temp 
     ):
         self.topics = topics
+        self.original_topics = copy.deepcopy(topics) # saved information in case of reseting
         self.width, self.height = dimensions
-        self.font_size = font_size
-
+        self.font_size = DEFAULT_FONT_SIZE
+        self.max_page = max_page
+        self.min_font_size = MIN_FONT_SIZE
         self._pdf_buffer = io.BytesIO()
         self._canvas = canvas.Canvas(self._pdf_buffer, pagesize=A4)
 
@@ -124,6 +131,37 @@ class CheatsheetGenerator:
                     superscript, font, self.font_size * SCRIPT_FONT_SIZE)
 
         return x
+
+    def _lower_font(self):
+        """
+        lowers font size if number of pdf pages are higher then max page count 
+        set by user
+        """
+        self.font_size -= 1
+
+    def _reset_canvas_and_buffer(self):
+        """Resets the canvas and buffer for PDF regeneration."""
+        self._pdf_buffer = io.BytesIO()
+        self._canvas = canvas.Canvas(self._pdf_buffer, pagesize=A4)
+
+    def _check_pdf_pages(self, pdf_buffer: io.BytesIO) -> bool:
+        """
+        Checks whether the number of pages in a PDF stored in an io.BytesIO buffer
+        exceeds the maximum allowed pages.
+
+        :param pdf_buffer: io.BytesIO containing the PDF data.
+        :return: True if the PDF page count is within the allowed limit, False otherwise.
+        """
+        try:
+            # Open the PDF from the buffer
+            pdf_document = fitz.open(stream=pdf_buffer, filetype="pdf")
+            
+            # Check page count
+            return pdf_document.page_count <= self.max_page
+        except Exception as e:
+            print(f"Error checking PDF pages: {e}")
+            return False
+
 
     @staticmethod
     def _parse_style(content: Topic) -> None:
@@ -210,6 +248,7 @@ class CheatsheetGenerator:
 
         raw_topic = content['topic'][0]
         raw_content = content['content']
+        
 
         max_str_len = max(
             self._styleStringWidth(raw_topic, 'Topic-Font'),
@@ -331,51 +370,73 @@ class CheatsheetGenerator:
 
     def create_pdf(self) -> io.BytesIO:
         """
-        Create a fully optimized cheatsheet from a list of topics. Utilizes formatting and
-        positioning to make efficient use of white space.
+        Create a fully optimized cheatsheet from a list of topics. If the PDF exceeds the maximum
+        allowed pages, it will regenerate the PDF using smaller fonts until it fits.
+
+        :return: io.BytesIO buffer containing the generated PDF.
         """
-        print("Creating cheatsheet...")
 
-        self._preprocess_data()
+        while self.font_size >= self.min_font_size:
+            try:
+                print(f"Creating cheatsheet with font size {self.font_size}...")
+                self.topics = copy.deepcopy(self.original_topics)
+                # Reset the canvas and buffer
+                self._reset_canvas_and_buffer()
 
-        packer = newPacker(mode=PackingMode.Online, rotation=False)
+                # Preprocess topics for packing
+                self._preprocess_data()
 
-        # Add infinite A4 bins
-        packer.add_bin(float2dec(self.width, DEC_PRECISION),
-                       float2dec(self.height, DEC_PRECISION),
-                       count=float('inf'))
+                # Initialize the packer
+                packer = newPacker(mode=PackingMode.Online, rotation=False)
 
-        # Pack topics
-        for i, content in enumerate(self.topics):
-            w, h = self._get_dimensions(content)
-            packer.add_rect(float2dec(w, DEC_PRECISION),
-                            float2dec(h, DEC_PRECISION), i)
+                # Add infinite A4 bins
+                packer.add_bin(float2dec(self.width, DEC_PRECISION),
+                            float2dec(self.height, DEC_PRECISION),
+                            count=float('inf'))
 
-        # Display rectpacked topics on PDF
-        for abin in packer:
-            for rect in abin:
-                x = float(rect.x)
-                y = self.height - float(
-                    rect.y
-                )  # rectpack uses bottom-left origin, adjust for reportlab
-                w = float(rect.width)
-                h = float(rect.height)
-                rid = rect.rid
+                # Pack topics into the bins
+                for i, content in enumerate(self.topics):
+                    w, h = self._get_dimensions(content)
+                    packer.add_rect(float2dec(w, DEC_PRECISION),
+                                    float2dec(h, DEC_PRECISION), i)
 
-                content = data_dict[rid]
-                self._place_content(content, x, y)
+                # Generate the PDF
+                for abin in packer:
+                    for rect in abin:
+                        x = float(rect.x)
+                        y = self.height - float(rect.y)  # Adjust for bottom-left origin
+                        w = float(rect.width)
+                        h = float(rect.height)
+                        rid = rect.rid
 
-            # Create new blank page
-            self._canvas.showPage()
+                        content = self.topics[rid]
+                        self._place_content(content, x, y)
 
-        # Verify no topics were dropped
-        assert len(packer.rect_list()) == len(self.topics)
+                    # Add a new blank page for the next bin
+                    self._canvas.showPage()
 
-        # Save the PDF
-        self._canvas.save()
+                # Ensure all topics are packed
+                assert len(packer.rect_list()) == len(self.topics)
 
-        self._pdf_buffer.seek(0)
-        return self._pdf_buffer
+                # Save the PDF to the buffer
+                self._canvas.save()
+                self._pdf_buffer.seek(0)
+
+                # Check the page count
+                if self._check_pdf_pages(self._pdf_buffer):
+                    print("PDF created successfully within page limit.")
+                    return self._pdf_buffer
+
+                # Reduce the font size if the page count exceeds the limit
+                print("PDF exceeds the page limit. Reducing font size...")
+                self._lower_font()
+
+            except Exception as e:
+                print(f"Error during PDF creation: {e}")
+                raise
+
+        raise ValueError("Unable to create a PDF within the page limit using the available font sizes.")
+
 
 
 if __name__ == "__main__":
