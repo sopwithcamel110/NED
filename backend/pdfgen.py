@@ -1,23 +1,17 @@
-from enum import Enum
-from io import BufferedWriter, BytesIO
 import io
-import os
-import random
-import tempfile
-import unicodedata
 import re
-
-from PIL import Image
+import unicodedata
+from enum import Enum
 from typing import Any, Dict, List, Tuple
 
-from rectpack import float2dec, newPacker, PackingMode
-from reportlab.platypus import SimpleDocTemplate, Spacer
+from PIL import Image
+from rectpack import PackingMode, float2dec, newPacker
+from reportlab.lib.pagesizes import A4
 from reportlab.lib.units import inch
 from reportlab.lib.utils import ImageReader
-from reportlab.lib.pagesizes import A4
-from reportlab.pdfgen import canvas
-from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
+from reportlab.pdfgen import canvas
 
 import wordwrap
 
@@ -64,7 +58,7 @@ class CheatsheetGenerator:
         self,
         topics: List[Topic],
         dimensions: Tuple[float, float] = A4,
-        font_size: int = 5,
+        font_size: float = 5,
     ):
         self.topics = topics
         self.width, self.height = dimensions
@@ -73,7 +67,13 @@ class CheatsheetGenerator:
         self._pdf_buffer = io.BytesIO()
         self._canvas = canvas.Canvas(self._pdf_buffer, pagesize=A4)
 
-    def _render_parsed_text(self, x, y, parsed_text, font):
+    def _render_parsed_text(
+        self,
+        x: float,
+        y: float,
+        parsed_text: StyledString,
+        font: str,
+    ) -> None:
         """
         Render parsed text with LaTeX-style superscripts, subscripts, and combinations
         on a ReportLab canvas.
@@ -124,8 +124,6 @@ class CheatsheetGenerator:
                 x += subscript_width + self._canvas.stringWidth(
                     superscript, font, self.font_size * SCRIPT_FONT_SIZE)
 
-        return x
-
     @staticmethod
     def _parse_style(content: Topic) -> None:
         """
@@ -153,7 +151,7 @@ class CheatsheetGenerator:
         content['topic'] = [_parse_str_style(content['topic'])]
         content['content'] = [_parse_str_style(s) for s in content['content']]
 
-    def _styleStringWidth(self, text: StyledString, font: str) -> int:
+    def _styleStringWidth(self, text: StyledString, font: str) -> float:
         """
         Wrapper for stringWidth function that accounts for superscripts and subscript dimension changes.
         """
@@ -173,7 +171,11 @@ class CheatsheetGenerator:
     def _wrap_string_list(self, content: Topic) -> None:
         """Word-wrap topic to maximize space efficiency."""
 
-        def fake_wrap(text: StyledString, font: str, width: int):
+        def fake_wrap(
+            text: StyledString,
+            font: str,
+            width: int,
+        ) -> List[StyledString]:
             """
             Wrap the stringified version of the styled string `text`. Then, reconstruct the 
             styled string using the lengths of the wrapped result. The "fake" aspect
@@ -181,8 +183,12 @@ class CheatsheetGenerator:
             "xy" and "x^y" when choosing where to wrap. This does not cause functional issues, 
             since we are overcompensating.
             """
-            wrapped = wordwrap.wrap(''.join(p[0] for p in text), self._canvas,
-                                    font, self.font_size, width, break_long_words=False)
+            wrapped = wordwrap.wrap(''.join(p[0] for p in text),
+                                    self._canvas,
+                                    font,
+                                    self.font_size,
+                                    width,
+                                    break_long_words=False)
 
             res = []
             i = 0
@@ -318,7 +324,7 @@ class CheatsheetGenerator:
                 # Convert binary to Image object
                 img = content['file'] = Image.open(content['file'])
 
-                # get width and height
+                # Resize image's longest side to 2 inches
                 image_width = img.width
                 image_height = img.height
                 scale_factor = max(image_height, image_height) / (2 * inch)
@@ -394,7 +400,7 @@ if __name__ == "__main__":
     for i, path in enumerate(images):
         with open(path, "rb") as img:
             data_dict.insert(3 + 2 * i, {
-                "file": BytesIO(img.read()),
+                "file": io.BytesIO(img.read()),
                 "media": "image"
             })
 
