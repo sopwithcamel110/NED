@@ -42,7 +42,7 @@ class CreatePDF(Resource):
         for file in request.files.values():
             topics.append({'media': 'image', 'file': BytesIO(file.read())})
 
-        cg = CheatsheetGenerator(topics)
+        cg = CheatsheetGenerator(topics, **meta)
         buf = cg.create_pdf()
         #buf = open('example/dummy.pdf', 'rb')
 

@@ -228,6 +228,9 @@ class CheatsheetGenerator:
 
         max_str_len = int(min(max_str_len, self.width))
         content['width'] = max_str_len
+        if content['nowrap']:
+            # Do not wrap if nowrap is set
+            return
 
         for width in range(max_str_len // 2, max_str_len + 1):
             topic = fake_wrap(raw_topic, 'Topic-Font', width)
@@ -239,6 +242,7 @@ class CheatsheetGenerator:
                 [self._styleStringWidth(s, 'Bullet-Font') for s in bullets] +
                 [self._styleStringWidth(s, 'Topic-Font') for s in topic])
             size = max_width * (len(bullets) + len(topic))
+
             if size < min_size:
                 min_size = size
                 content['topic'] = topic
