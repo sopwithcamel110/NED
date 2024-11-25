@@ -14,7 +14,7 @@ import QuestionMarkIcon from '@mui/icons-material/QuestionMark';
 import NotInterestedIcon from '@mui/icons-material/NotInterested';
 import CodeIcon from '@mui/icons-material/Code';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
-import { TextField, IconButton, Button, Toolbar, Tooltip, Menu, MenuItem } from '@mui/material';
+import { TextField, IconButton, Button, Toolbar, Tooltip, Menu, MenuItem, FormControlLabel, Checkbox } from '@mui/material';
 import FunctionsIcon from '@mui/icons-material/Functions';
 import Grid from '@mui/material/Grid2';
 import './Home.css';
@@ -25,7 +25,7 @@ const Home = () => {
     const [topics, setTopics] = useState(() => {
         const savedTopics = JSON.parse(localStorage.getItem('topics'));
 
-        return Array.isArray(savedTopics) && savedTopics.length > 0 ? savedTopics : [{ topic: '', textSegments: [''], media: 'text' }];
+        return Array.isArray(savedTopics) && savedTopics.length > 0 ? savedTopics : [{ topic: '', textSegments: [''], media: 'text', nowrap: false }];
     });
     const [anchorEl, setAnchorEl] = useState(null); // For symbol menu
     const contentRef = useRef(null);
@@ -35,6 +35,12 @@ const Home = () => {
     const [symbolMenuAnchorEl, setSymbolMenuAnchorEl] = useState(null); 
     const [selectedTopicIndex, setSelectedTopicIndex] = useState(null);
     const [selectedTextIndex, setSelectedTextIndex] = useState(null); 
+
+    const handleNoWrapChange = (index, value) => {
+        const newTopics = [...topics];
+        newTopics[index].nowrap = value === 'on';
+        updateTopics(newTopics);
+    };
 
     const [maxPages, setMaxPages] = useState(null); // State for "Max pages"
 
@@ -79,6 +85,7 @@ const Home = () => {
                     'topic': topic.topic,
                     'content': topic.textSegments[0].split('\n'),
                     'media': topic.media,
+                    'nowrap': topic.nowrap,
                   }));
             }
         });
@@ -111,7 +118,7 @@ const Home = () => {
     };
 
     const addTextTopic = () => {
-        const newTopic = { topic: '', textSegments: [''], media: 'text' };
+        const newTopic = { topic: '', textSegments: [''], media: 'text', nowrap: false };
         setTopics([...topics, newTopic]);
     };
 
@@ -294,11 +301,6 @@ const Home = () => {
                                                             <CodeIcon />
                                                         </IconButton>
                                                     </Tooltip>
-                                                    <Tooltip title="No Text Wrap" arrow>
-                                                        <IconButton onClick={() => insertNoWrap(topicIndex, 0)}>
-                                                            <NotInterestedIcon />
-                                                        </IconButton>
-                                                    </Tooltip>
                                                     <Tooltip title="Exponent" arrow>
                                                         <IconButton onClick={() => insertExponent(topicIndex, 0)}>
                                                             <SuperscriptIcon/>
@@ -314,12 +316,20 @@ const Home = () => {
                                                             <QuestionMarkIcon/>
                                                         </IconButton>
                                                     </Tooltip>
-
                                                     <Tooltip title="Insert Symbol" arrow>
                                                         <IconButton onClick={(e) => handleSymbolMenuOpen(e, topicIndex, 0)}>
                                                             <FunctionsIcon />
                                                         </IconButton>
                                                     </Tooltip>
+                                                    <FormControlLabel
+                                                        control={
+                                                            <Checkbox
+                                                                onChange={(e) => handleNoWrapChange(topicIndex, e.target.value)}
+                                                                color="primary"
+                                                            />
+                                                        }
+                                                        label="No Wrap"
+                                                    />
                                                 </Toolbar>
                                             </div>
 
