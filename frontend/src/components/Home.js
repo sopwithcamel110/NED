@@ -27,8 +27,6 @@ const Home = () => {
 
         return Array.isArray(savedTopics) && savedTopics.length > 0 ? savedTopics : [{ topic: '', textSegments: [''], media: 'text', nowrap: false }];
     });
-    const [anchorEl, setAnchorEl] = useState(null); // For symbol menu
-    const contentRef = useRef(null);
     const navigate = useNavigate();
 
     //math symbols
@@ -36,9 +34,9 @@ const Home = () => {
     const [selectedTopicIndex, setSelectedTopicIndex] = useState(null);
     const [selectedTextIndex, setSelectedTextIndex] = useState(null); 
 
-    const handleNoWrapChange = (index, value) => {
+    const handleNoWrapChange = (index) => {
         const newTopics = [...topics];
-        newTopics[index].nowrap = value === 'on';
+        newTopics[index].nowrap = !newTopics[index].nowrap;
         updateTopics(newTopics);
     };
 
@@ -325,7 +323,7 @@ const Home = () => {
                                                         control={
                                                             <Checkbox
                                                                 checked={topicObj.nowrap}
-                                                                onChange={(e) => handleNoWrapChange(topicIndex, e.target.value)}
+                                                                onChange={(e) => handleNoWrapChange(topicIndex)}
                                                                 color="primary"
                                                             />
                                                         }
