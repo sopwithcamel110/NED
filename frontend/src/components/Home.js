@@ -14,7 +14,7 @@ import QuestionMarkIcon from '@mui/icons-material/QuestionMark';
 import NotInterestedIcon from '@mui/icons-material/NotInterested';
 import CodeIcon from '@mui/icons-material/Code';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
-import { TextField, IconButton, Button, Toolbar, Tooltip, Menu, MenuItem, FormControlLabel, Checkbox } from '@mui/material';
+import { TextField, IconButton, Divider, Button, Toolbar, Tooltip, Menu, MenuItem, FormControlLabel, Checkbox } from '@mui/material';
 import FunctionsIcon from '@mui/icons-material/Functions';
 import Grid from '@mui/material/Grid2';
 import './Home.css';
@@ -166,17 +166,20 @@ const Home = () => {
 
     const applyFormatting = (type, topicIndex, textIndex) => {
         const updatedTopics = [...topics];
-        let text = updatedTopics[topicIndex].textSegments[textIndex];
-
+        const text = updatedTopics[topicIndex].textSegments[textIndex];
+        const removeFormatting = (lines) => 
+            lines.map(line => line.replace(/^•\s|^\d+\.\s/, ''));
+        const lines = text.split('\n');
+        const strippedLines = removeFormatting(lines);
         if (type === 'numbered') {
-            text = text.split('\n').map((line, i) => `${i + 1}. ${line}`).join('\n');
+            updatedTopics[topicIndex].textSegments[textIndex] = strippedLines
+                .map((line, i) => `${i + 1}. ${line}`)
+                .join('\n');
         } else if (type === 'bulleted') {
-            text = text.split('\n').map(line => `• ${line}`).join('\n');
-        } else if (type === 'code') {
-            text = `\`\`\`\n${text}\n\`\`\``;
+            updatedTopics[topicIndex].textSegments[textIndex] = strippedLines
+                .map((line) => `• ${line}`)
+                .join('\n');
         }
-
-        updatedTopics[topicIndex].textSegments[textIndex] = text;
         updateTopics(updatedTopics);
     };
 
@@ -186,7 +189,6 @@ const Home = () => {
         updatedTopics[topicIndex].textSegments[textIndex] = currentText + '^{}';
         updateTopics(updatedTopics);
     };
-
 
     const insertSubscript = (topicIndex, textIndex) => {  //subscript Button
         const updatedTopics = [...topics];
@@ -201,20 +203,14 @@ const Home = () => {
         updatedTopics[topicIndex].textSegments[textIndex] = currentText + '√{}';
         updateTopics(updatedTopics);
     };
-
-    const insertNoWrap = (topicIndex, textIndex) => {  //no txt wrap
-        const updatedTopics = [...topics];
-        const currentText = updatedTopics[topicIndex].textSegments[textIndex];
-        updatedTopics[topicIndex].textSegments[textIndex] = currentText + '\\\\';
-        updateTopics(updatedTopics);
-    };
     
-    const insertCodeBlock = (topicIndex, textIndex) => {  //no txt wrap
+    const insertCodeBlock = (topicIndex, textIndex) => {  //code part
         const updatedTopics = [...topics];
         const currentText = updatedTopics[topicIndex].textSegments[textIndex];
         updatedTopics[topicIndex].textSegments[textIndex] = currentText + '<<< >>>';
         updateTopics(updatedTopics);
     };
+    
     //math symbol dropdown menu
     const handleSymbolMenuOpen = (event, topicIndex, textIndex) => {
         setSymbolMenuAnchorEl(event.currentTarget);
@@ -285,12 +281,12 @@ const Home = () => {
                                                 />
                                                 <Toolbar className="toolbar">
                                                     <Tooltip title="Bullet List" arrow>
-                                                        <IconButton onClick={() => applyFormatting('bulleted', topicIndex, textIndex)}>
+                                                        <IconButton onClick={() => applyFormatting('bulleted', topicIndex, 0)}>
                                                             <FormatListBulletedIcon />
                                                         </IconButton>
                                                     </Tooltip>
                                                     <Tooltip title="Numbered List" arrow>
-                                                        <IconButton onClick={() => applyFormatting('numbered', topicIndex, textIndex)}>
+                                                        <IconButton onClick={() => applyFormatting('numbered', topicIndex, 0)}>
                                                             <FormatListNumberedIcon />
                                                         </IconButton>
                                                     </Tooltip>
@@ -311,7 +307,7 @@ const Home = () => {
                                                     </Tooltip>
                                                     <Tooltip title="Square Root" arrow>
                                                         <IconButton onClick={() => insertSQRT(topicIndex, 0)}>
-                                                            <QuestionMarkIcon/>
+                                                            √{'x'}
                                                         </IconButton>
                                                     </Tooltip>
                                                     <Tooltip title="Insert Symbol" arrow>
@@ -319,6 +315,11 @@ const Home = () => {
                                                             <FunctionsIcon />
                                                         </IconButton>
                                                     </Tooltip>
+                                                    <Divider 
+                                                        orientation="vertical" 
+                                                        flexItem 
+                                                        sx={{ margin: '0 10px' }} // Add spacing around the divider
+                                                    />
                                                     <FormControlLabel
                                                         control={
                                                             <Checkbox
@@ -327,7 +328,7 @@ const Home = () => {
                                                                 color="primary"
                                                             />
                                                         }
-                                                        label="No Wrap"
+                                                        label="No Text Wrap"
                                                     />
                                                 </Toolbar>
                                             </div>
@@ -402,7 +403,7 @@ const Home = () => {
                     style={{ padding: '10px', display: 'flex', flexWrap: 'wrap' }}
                 >
                     {[
-                        '∞', 'π', 'e', 'Σ', 'Ω', 'Δ', '∑', '√', '±', '∩',
+                        '∞', 'π', 'e', 'Σ', 'Ω', 'Δ', '∑', '±', '∩',
                         '∪', '∈', '∉', '⊂', '⊃', '⊆', '⊇', '∃', '∀', '∧',
                         '∨', '⇒', '⇔', '∇', '∂', '⊥', '⊤', '≠', '≈', '≡',
                         '≪', '≫', '∝', '∼', '≈', '∫', '∮', '∅', '∴', '⊕',
