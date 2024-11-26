@@ -43,10 +43,12 @@ const Home = () => {
     const [maxPages, setMaxPages] = useState(null); // State for "Max pages"
 
     const handleMaxPagesChange = (event) => {
-        const value = event.target.value;
+        let value = event.target.value;
+        if (value <= 0){
+            value = "";
+        }
         setMaxPages(value === "" ? null : parseInt(value));
     };
-
     
     const updateTopics = (newTopics) => {
         setTopics(newTopics);
@@ -212,9 +214,9 @@ const Home = () => {
         insertAtCursor(topicIndex, textIndex, "_{}");
     };
 
-    const insertSQRT = (topicIndex, textIndex) => {
-        insertAtCursor(topicIndex, textIndex, "√{}");
-    };
+    const insertSymbol = (topicIndex, textIndex, symbol) => {
+        insertAtCursor(topicIndex, textIndex, symbol)
+    }
     
     const insertCodeBlock = (topicIndex, textIndex) => {  //code part
         const updatedTopics = [...topics];
@@ -232,14 +234,6 @@ const Home = () => {
     
     const handleSymbolMenuClose = () => {
         setSymbolMenuAnchorEl(null);
-    };
-    
-    const handleSymbolSelect = (symbol) => {
-        const updatedTopics = [...topics];
-        const currentText = updatedTopics[selectedTopicIndex].textSegments[selectedTextIndex];
-        updatedTopics[selectedTopicIndex].textSegments[selectedTextIndex] = currentText + symbol;
-        updateTopics(updatedTopics);
-        handleSymbolMenuClose();
     };
     
 
@@ -315,11 +309,6 @@ const Home = () => {
                                                     <Tooltip title="Subscript" arrow>
                                                         <IconButton onClick={() => insertSubscript(topicIndex, 0)}>
                                                             <SubscriptIcon/>
-                                                        </IconButton>
-                                                    </Tooltip>
-                                                    <Tooltip title="Square Root" arrow>
-                                                        <IconButton onClick={() => insertSQRT(topicIndex, 0)}>
-                                                            √{'x'}
                                                         </IconButton>
                                                     </Tooltip>
                                                     <Tooltip title="Insert Symbol" arrow>
@@ -415,7 +404,7 @@ const Home = () => {
                     style={{ padding: '10px', display: 'flex', flexWrap: 'wrap' }}
                 >
                     {[
-                        '∞', 'π', 'e', 'Σ', 'Ω', 'Δ', '∑', '±', '∩',
+                        '∞', 'π', 'e', 'Σ', 'Ω', 'Δ', '∑', '±', '∩', '√',
                         '∪', '∈', '∉', '⊂', '⊃', '⊆', '⊇', '∃', '∀', '∧',
                         '∨', '⇒', '⇔', '∇', '∂', '⊥', '⊤', '≠', '≈', '≡',
                         '≪', '≫', '∝', '∼', '≈', '∫', '∮', '∅', '∴', '⊕',
@@ -426,7 +415,10 @@ const Home = () => {
                         return (
                             <Grid item xs={2} sm={1} md={1} key={index}>
                                 <MenuItem
-                                    onClick={function() { handleSymbolSelect(symbol); }}
+                                    onClick={function() {
+                                        insertSymbol(selectedTopicIndex, selectedTextIndex, symbol);
+                                        handleSymbolMenuClose();
+                                    }}
                                     style={{
                                         display: 'flex',
                                         justifyContent: 'center',
@@ -440,6 +432,7 @@ const Home = () => {
                     })}
                 </Grid>
             </Menu>
+
 
             <div className="footer-buttons2">
                 <Button variant="contained" component="span" onClick={addTextTopic}>
