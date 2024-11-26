@@ -164,6 +164,7 @@ const Home = () => {
         }
     };
 
+    //bulletpoint, numlist
     const applyFormatting = (type, topicIndex, textIndex) => {
         const updatedTopics = [...topics];
         const text = updatedTopics[topicIndex].textSegments[textIndex];
@@ -183,25 +184,36 @@ const Home = () => {
         updateTopics(updatedTopics);
     };
 
-    const insertExponent = (topicIndex, textIndex) => { //exponent button
+    const insertAtCursor = (topicIndex, textIndex, insertText) => {
         const updatedTopics = [...topics];
-        const currentText = updatedTopics[topicIndex].textSegments[textIndex];
-        updatedTopics[topicIndex].textSegments[textIndex] = currentText + '^{}';
-        updateTopics(updatedTopics);
+        const textFieldId = `text-segment-${topicIndex}-${textIndex}`;
+        const textField = document.getElementById(textFieldId);
+    
+        if (textField) {
+            const { selectionStart, selectionEnd } = textField;
+            const currentText = updatedTopics[topicIndex].textSegments[textIndex];
+            updatedTopics[topicIndex].textSegments[textIndex] = 
+                currentText.slice(0, selectionStart) + 
+                insertText + 
+                currentText.slice(selectionEnd);
+            updateTopics(updatedTopics);
+            setTimeout(() => {
+                textField.selectionStart = textField.selectionEnd = selectionStart + insertText.length;
+                textField.focus();
+            }, 0);
+        }
     };
 
-    const insertSubscript = (topicIndex, textIndex) => {  //subscript Button
-        const updatedTopics = [...topics];
-        const currentText = updatedTopics[topicIndex].textSegments[textIndex];
-        updatedTopics[topicIndex].textSegments[textIndex] = currentText + '_{}';
-        updateTopics(updatedTopics);
+    const insertExponent = (topicIndex, textIndex) => {
+        insertAtCursor(topicIndex, textIndex, "^{}");
     };
 
-    const insertSQRT = (topicIndex, textIndex) => {  //Square root bttn
-        const updatedTopics = [...topics];
-        const currentText = updatedTopics[topicIndex].textSegments[textIndex];
-        updatedTopics[topicIndex].textSegments[textIndex] = currentText + '√{}';
-        updateTopics(updatedTopics);
+    const insertSubscript = (topicIndex, textIndex) => {
+        insertAtCursor(topicIndex, textIndex, "_{}");
+    };
+
+    const insertSQRT = (topicIndex, textIndex) => {
+        insertAtCursor(topicIndex, textIndex, "√{}");
     };
     
     const insertCodeBlock = (topicIndex, textIndex) => {  //code part
@@ -210,7 +222,7 @@ const Home = () => {
         updatedTopics[topicIndex].textSegments[textIndex] = currentText + '<<< >>>';
         updateTopics(updatedTopics);
     };
-    
+
     //math symbol dropdown menu
     const handleSymbolMenuOpen = (event, topicIndex, textIndex) => {
         setSymbolMenuAnchorEl(event.currentTarget);
