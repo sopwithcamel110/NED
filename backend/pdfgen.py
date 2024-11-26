@@ -26,9 +26,12 @@ DEC_PRECISION = 6
 SCRIPT_FONT_SIZE = 0.7  # super/subscript font size
 Y_SCRIPT = 1 - SCRIPT_FONT_SIZE
 
-DEFAULT_FONT_SIZE = 8 # temp
-MIN_FONT_SIZE = 5 # temp
-REDUCE_MULT = 0.1 # multiplier to reduce font size
+DEFAULT_MAX_PAGE = 2
+
+DEFAULT_FONT_SIZE = 11
+MIN_FONT_SIZE = 5 # can change? 
+REDUCE_MULT = 0.15 # multiplier to reduce font size
+ROUND_VAL = 1 # rounding to nth place
 
 # Register fonts
 pdfmetrics.registerFont(TTFont('Bullet-Font', 'fonts/NotoSans-Regular.ttf'))
@@ -69,7 +72,7 @@ class CheatsheetGenerator:
         self,
         topics: List[Topic],
         dimensions: Tuple[float, float] = A4,
-        max_page: int = 2 # temp 
+        max_page: int = DEFAULT_MAX_PAGE #
     ):
         self.topics = topics
         self.original_topics = copy.deepcopy(topics) # saved information in case of reseting
@@ -144,7 +147,9 @@ class CheatsheetGenerator:
         for i in range(self.max_page, len(packer)):
             _topics += len(packer[i])
         
-        self.font_size = self.font_size - (_topics * REDUCE_MULT)
+        self.font_size = round(self.font_size - 
+                                round(_topics * REDUCE_MULT, ROUND_VAL), 
+                                ROUND_VAL)
 
     @staticmethod
     def _parse_style(content: Topic) -> None:
