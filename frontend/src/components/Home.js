@@ -324,6 +324,7 @@ const Home = () => {
                                                     <FormControlLabel
                                                         control={
                                                             <Checkbox
+                                                                checked={topicObj.nowrap}
                                                                 onChange={(e) => handleNoWrapChange(topicIndex, e.target.value)}
                                                                 color="primary"
                                                             />
