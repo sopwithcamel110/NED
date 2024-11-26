@@ -6,7 +6,6 @@ import random
 import tempfile
 import unicodedata
 import re
-import fitz
 import copy
 
 from PIL import Image
