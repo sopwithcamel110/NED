@@ -7,35 +7,58 @@ import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import PlusIcon from '@mui/icons-material/Add';
 import FormatListNumberedIcon from '@mui/icons-material/FormatListNumbered';
 import FormatListBulletedIcon from '@mui/icons-material/FormatListBulleted';
-import EmojiSymbolsIcon from '@mui/icons-material/EmojiSymbols';
+import SuperscriptIcon from '@mui/icons-material/Superscript';
+import SubscriptIcon from '@mui/icons-material/Subscript';
+import QuestionMarkIcon from '@mui/icons-material/QuestionMark';
+// import EmojiSymbolsIcon from '@mui/icons-material/EmojiSymbols';
 import NotInterestedIcon from '@mui/icons-material/NotInterested';
 import CodeIcon from '@mui/icons-material/Code';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
-import { TextField, IconButton, Button, Toolbar, Tooltip } from '@mui/material';
-import { Menu, MenuItem } from '@mui/material';
+import { TextField, IconButton, Divider, Button, Toolbar, Tooltip, Menu, MenuItem, FormControlLabel, Checkbox } from '@mui/material';
+import FunctionsIcon from '@mui/icons-material/Functions';
 import Grid from '@mui/material/Grid2';
 import './Home.css';
 
 const API_BASE_URL = "http://localhost:5000"; // Replace with your actual backend URL
 
 const Home = () => {
-    const [topics, setTopics] = useState([]);
-    const [anchorEl, setAnchorEl] = useState(null); // For symbol menu
-    const contentRef = useRef(null);
+    const [topics, setTopics] = useState(() => {
+        const savedTopics = JSON.parse(localStorage.getItem('topics'));
+
+        return Array.isArray(savedTopics) && savedTopics.length > 0 ? savedTopics : [{ topic: '', textSegments: [''], media: 'text', nowrap: false }];
+    });
     const navigate = useNavigate();
 
+    //math symbols
+    const [symbolMenuAnchorEl, setSymbolMenuAnchorEl] = useState(null); 
+    const [selectedTopicIndex, setSelectedTopicIndex] = useState(null);
+    const [selectedTextIndex, setSelectedTextIndex] = useState(null); 
+
+    const handleNoWrapChange = (index) => {
+        const newTopics = [...topics];
+        newTopics[index].nowrap = !newTopics[index].nowrap;
+        updateTopics(newTopics);
+    };
+
+    const [maxPages, setMaxPages] = useState(null); // State for "Max pages"
+
+    const handleMaxPagesChange = (event) => {
+        let value = event.target.value;
+        if (value <= 0){
+            value = "";
+        }
+        setMaxPages(value === "" ? null : parseInt(value));
+    };
+    
     const updateTopics = (newTopics) => {
         setTopics(newTopics);
     };
 
     // Save a new topic to the backend
-    const saveTopics = async (newTopics) => {
+    const saveTopics = async (formData) => {
         var response = await fetch(API_BASE_URL + "/createpdf", {
             method: "POST",
-            headers: {
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify(newTopics),
+            body: formData,
         });
         
         if (response.ok) {
@@ -49,23 +72,37 @@ const Home = () => {
       };
       
       const collectAndSaveTopics = async () => {
-        const topicData = topics.map((topicObj) => ({
-          'topic': topicObj.topic,
-          'content': topicObj.textSegments[0].split('\n'),
-          'media': 'text',
-        }));
+        const formData = new FormData();
+
+        formData.append(`meta_max_pages`, maxPages);
+        topics.forEach((topic, index) => {
+            if (topic.file) {
+                // If topic contains a File object
+                formData.append(`file_${index}`, topic.file);
+            } else {
+                // If topic is a dictionary
+                formData.append(`data_${index}`, JSON.stringify({
+                    'topic': topic.topic,
+                    'content': topic.textSegments[0].split('\n'),
+                    'media': topic.media,
+                    'nowrap': topic.nowrap,
+                  }));
+            }
+        });
       
-        return await saveTopics(topicData);
+        return await saveTopics(formData);
       };
 
     // Delete a topic from the backend
-    const deleteTopic = async (topicId) => {
-        try {
-            await fetch(`${API_BASE_URL}/${topicId}`, { method: 'DELETE' });
-            console.log("Topic deleted successfully");
-        } catch (error) {
-            console.error("Error deleting topic:", error);
-        }
+    const deleteTopic = async (index) => {
+        setTopics((prevTopics) => {
+            // Create a new array without the topic at the given index
+            const updatedTopics = prevTopics.filter((_, i) => i !== index);
+            // Save the updated array to localStorage
+            localStorage.setItem('topics', JSON.stringify(updatedTopics));
+            // Return the updated array to update state
+            return updatedTopics;
+        });
     };
 
     const handleTopicChange = (index, value) => {
@@ -80,8 +117,14 @@ const Home = () => {
         updateTopics(newTopics);
     };
 
-    const addNewTopic = () => {
-        const newTopic = { topic: '', textSegments: [''] };
+    const addTextTopic = () => {
+        const newTopic = { topic: '', textSegments: [''], media: 'text', nowrap: false };
+        setTopics([...topics, newTopic]);
+    };
+
+    const addImageTopic = (event) => {
+        const file = event.target.files[0];
+        const newTopic = { url: URL.createObjectURL(file), file, media: 'image' };
         setTopics([...topics, newTopic]);
     };
 
@@ -96,7 +139,7 @@ const Home = () => {
 
     const handleNext = async () => {
         // Make sure topics are valid before saving
-        const allValid = topics.every(
+        const allValid = topics.filter((t) => t.media == 'text').every(
           (topic) => topic.topic.trim() !== '' && topic.textSegments.some((segment) => segment.trim() !== '')
         );
         
@@ -104,6 +147,7 @@ const Home = () => {
           alert('Please ensure all topics have titles and at least one text segment.');
           return;
         }
+        localStorage.setItem('topics', JSON.stringify(topics));
         
         var location = await collectAndSaveTopics();
         navigate('/preview', { state: { pdfLocation: location } });
@@ -122,31 +166,76 @@ const Home = () => {
         }
     };
 
+    //bulletpoint, numlist
     const applyFormatting = (type, topicIndex, textIndex) => {
         const updatedTopics = [...topics];
-        let text = updatedTopics[topicIndex].textSegments[textIndex];
-
+        const text = updatedTopics[topicIndex].textSegments[textIndex];
+        const removeFormatting = (lines) => 
+            lines.map(line => line.replace(/^•\s|^\d+\.\s/, ''));
+        const lines = text.split('\n');
+        const strippedLines = removeFormatting(lines);
         if (type === 'numbered') {
-            text = text.split('\n').map((line, i) => `${i + 1}. ${line}`).join('\n');
+            updatedTopics[topicIndex].textSegments[textIndex] = strippedLines
+                .map((line, i) => `${i + 1}. ${line}`)
+                .join('\n');
         } else if (type === 'bulleted') {
-            text = text.split('\n').map(line => `• ${line}`).join('\n');
-        } else if (type === 'code') {
-            text = `\`\`\`\n${text}\n\`\`\``;
+            updatedTopics[topicIndex].textSegments[textIndex] = strippedLines
+                .map((line) => `• ${line}`)
+                .join('\n');
         }
-
-        updatedTopics[topicIndex].textSegments[textIndex] = text;
         updateTopics(updatedTopics);
     };
 
-    const symbols = ['★', '✔', '♛', '♪', '☀', '♥', '☺', '✈'];
-    const handleSymbolClick = (event) => setAnchorEl(event.currentTarget);
-    const handleSymbolSelect = (symbol, topicIndex, textIndex) => {
+    const insertAtCursor = (topicIndex, textIndex, insertText) => {
+        const updatedTopics = [...topics];
+        const textFieldId = `text-segment-${topicIndex}-${textIndex}`;
+        const textField = document.getElementById(textFieldId);
+    
+        if (textField) {
+            const { selectionStart, selectionEnd } = textField;
+            const currentText = updatedTopics[topicIndex].textSegments[textIndex];
+            updatedTopics[topicIndex].textSegments[textIndex] = 
+                currentText.slice(0, selectionStart) + 
+                insertText + 
+                currentText.slice(selectionEnd);
+            updateTopics(updatedTopics);
+            setTimeout(() => {
+                textField.selectionStart = textField.selectionEnd = selectionStart + insertText.length;
+                textField.focus();
+            }, 0);
+        }
+    };
+
+    const insertExponent = (topicIndex, textIndex) => {
+        insertAtCursor(topicIndex, textIndex, "^{}");
+    };
+
+    const insertSubscript = (topicIndex, textIndex) => {
+        insertAtCursor(topicIndex, textIndex, "_{}");
+    };
+
+    const insertSymbol = (topicIndex, textIndex, symbol) => {
+        insertAtCursor(topicIndex, textIndex, symbol)
+    }
+    
+    const insertCodeBlock = (topicIndex, textIndex) => {  //code part
         const updatedTopics = [...topics];
         const currentText = updatedTopics[topicIndex].textSegments[textIndex];
-        updatedTopics[topicIndex].textSegments[textIndex] = currentText + symbol;
-        setTopics(updatedTopics);
-        setAnchorEl(null);
+        updatedTopics[topicIndex].textSegments[textIndex] = currentText + '<<< >>>';
+        updateTopics(updatedTopics);
     };
+
+    //math symbol dropdown menu
+    const handleSymbolMenuOpen = (event, topicIndex, textIndex) => {
+        setSymbolMenuAnchorEl(event.currentTarget);
+        setSelectedTopicIndex(topicIndex);
+        setSelectedTextIndex(textIndex);
+    };
+    
+    const handleSymbolMenuClose = () => {
+        setSymbolMenuAnchorEl(null);
+    };
+    
 
     return (
         <div className="home-container" >
@@ -162,6 +251,16 @@ const Home = () => {
         </div>
         {/* Main Content Section */}
         <div id="content-section" className="content-section">
+            <TextField
+                        id="max-pages-input"
+                        label="Max Pages"
+                        type="number"
+                        variant="outlined"
+                        value={maxPages !== null ? maxPages : ""}
+                        onChange={handleMaxPagesChange}
+                        style={{ marginBottom: '20px', width: '200px' }}
+                        helperText="Optional. Defaults to infinite."
+                    />
             <h2>Enter Notes Here</h2>
             <DragDropContext onDragEnd={onDragEnd}>
                 <Droppable droppableId="droppable" direction="vertical">
@@ -175,8 +274,8 @@ const Home = () => {
                                             {...provided.draggableProps}
                                             {...provided.dragHandleProps}
                                             className="topic-container"
-                                        >
-                                            <div className="topic-row">
+                                        >   
+                                            {topicObj.media == 'text' ? <><div className="topic-row">
                                                 <TextField
                                                     id="outlined-basic"
                                                     label="Enter Topic"
@@ -188,70 +287,75 @@ const Home = () => {
                                                 />
                                                 <Toolbar className="toolbar">
                                                     <Tooltip title="Bullet List" arrow>
-                                                        <IconButton onClick={() => applyFormatting('bulleted', topicIndex, textIndex)}>
+                                                        <IconButton onClick={() => applyFormatting('bulleted', topicIndex, 0)}>
                                                             <FormatListBulletedIcon />
                                                         </IconButton>
                                                     </Tooltip>
                                                     <Tooltip title="Numbered List" arrow>
-                                                        <IconButton onClick={() => applyFormatting('numbered', topicIndex, textIndex)}>
+                                                        <IconButton onClick={() => applyFormatting('numbered', topicIndex, 0)}>
                                                             <FormatListNumberedIcon />
                                                         </IconButton>
                                                     </Tooltip>
                                                     <Tooltip title="Code Block" arrow>
-                                                        <IconButton onClick={() => applyFormatting('code', topicIndex, textIndex)}>
+                                                        <IconButton onClick={() => insertCodeBlock(topicIndex, 0)}>
                                                             <CodeIcon />
                                                         </IconButton>
                                                     </Tooltip>
-                                                    <Tooltip title="No Text Wrap" arrow>
-                                                        <IconButton>
-                                                            <NotInterestedIcon />
+                                                    <Tooltip title="Exponent" arrow>
+                                                        <IconButton onClick={() => insertExponent(topicIndex, 0)}>
+                                                            <SuperscriptIcon/>
                                                         </IconButton>
                                                     </Tooltip>
-
-                                                    <IconButton onClick={handleSymbolClick}><EmojiSymbolsIcon /></IconButton>
-                                                        <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={() => setAnchorEl(null)}>
-                                                            <Grid container spacing={1} style={{ maxHeight: '200px', overflow: 'auto' }}>
-                                                                {symbols.map((symbol, index) => (
-                                                                    <Grid item xs={3} key={index}>
-                                                                        <MenuItem onClick={() => handleSymbolSelect(symbol, topicIndex, topicIndex)}>{symbol}</MenuItem>
-                                                                    </Grid>
-                                                                ))}
-                                                            </Grid>
-                                                        </Menu>
+                                                    <Tooltip title="Subscript" arrow>
+                                                        <IconButton onClick={() => insertSubscript(topicIndex, 0)}>
+                                                            <SubscriptIcon/>
+                                                        </IconButton>
+                                                    </Tooltip>
+                                                    <Tooltip title="Insert Symbol" arrow>
+                                                        <IconButton onClick={(e) => handleSymbolMenuOpen(e, topicIndex, 0)}>
+                                                            <FunctionsIcon />
+                                                        </IconButton>
+                                                    </Tooltip>
+                                                    <Divider 
+                                                        orientation="vertical" 
+                                                        flexItem 
+                                                        sx={{ margin: '0 10px' }} // Add spacing around the divider
+                                                    />
+                                                    <FormControlLabel
+                                                        control={
+                                                            <Checkbox
+                                                                checked={topicObj.nowrap}
+                                                                onChange={(e) => handleNoWrapChange(topicIndex)}
+                                                                color="primary"
+                                                            />
+                                                        }
+                                                        label="No Text Wrap"
+                                                    />
                                                 </Toolbar>
-                                                <Button
-                                                    component="label"
-                                                    variant="contained"
-                                                    startIcon={<CloudUploadIcon />}
-                                                >
-                                                    Upload Images
-                                                <input
-                                                    type="file"
-                                                    multiple
-                                                    onChange={(event) => console.log(event.target.files)}
-                                                    style={{ display: 'none' }}
-                                                />
-                                                </Button>
                                             </div>
 
                                             <div className="text-box-container">
                                                 {topicObj.textSegments.map((segment, textIndex) => (
-                                                    <div key={textIndex} className="text-box">
-                                                        <TextField
-                                                            id="outlined-multiline-static"
-                                                            label="Enter Text"
-                                                            multiline
-                                                            rows={12}
-                                                            value={segment}
-                                                            style={{ paddingBottom: '2px' }}
-                                                            onChange={(e) =>
-                                                                handleTextChange(topicIndex, textIndex, e.target.value)
-                                                            }
-                                                            className="consistent-textarea"
-                                                        />
-                                                    </div>
+                                                <div key={textIndex} className="text-box">
+                                                    <TextField
+                                                        id={`text-segment-${topicIndex}-${textIndex}`}
+                                                        label="Enter Text"
+                                                        multiline
+                                                        rows={12}
+                                                        value={segment}
+                                                        style={{ paddingBottom: '2px' }}
+                                                        onChange={(e) => handleTextChange(topicIndex, textIndex, e.target.value)}
+                                                        className="consistent-textarea"
+                                                    />
+                                                </div>
                                                 ))}
-                                            </div>
+                                            </div></>:<><img
+                                    key={topicIndex}
+                                    src={topicObj.url}
+                                    alt={`Uploaded ${topicIndex + 1}`}
+                                    style={{ width: '100px', margin: '10px' }}
+                                /></>}
+                                            
                                             <div className="button-row" style={{ display: 'flex', justifyContent: 'flex-end' }}>
                                                 <Button 
                                                     variant="outlined" 
@@ -268,7 +372,7 @@ const Home = () => {
                                                     }}
                                                     onClick={() => deleteTopic(topicIndex)}
                                                 >
-                                                    <DeleteIcon/> Delete Block
+                                                    <DeleteIcon/>
                                                 </Button>
                                             </div>
 
@@ -281,31 +385,72 @@ const Home = () => {
                     )}
                 </Droppable>
             </DragDropContext>
+                
+            <Menu
+                anchorEl={symbolMenuAnchorEl}
+                open={Boolean(symbolMenuAnchorEl)}
+                onClose={handleSymbolMenuClose}
+                PaperProps={{
+                    style: {
+                        maxHeight: '400px',
+                        overflowY: 'auto', 
+                        width: '500px',
+                    },
+                }}
+            >
+                <Grid
+                    container
+                    spacing={1}
+                    style={{ padding: '10px', display: 'flex', flexWrap: 'wrap' }}
+                >
+                    {[
+                        '∞', 'π', 'e', 'Σ', 'Ω', 'Δ', '∑', '±', '∩', '√',
+                        '∪', '∈', '∉', '⊂', '⊃', '⊆', '⊇', '∃', '∀', '∧',
+                        '∨', '⇒', '⇔', '∇', '∂', '⊥', '⊤', '≠', '≈', '≡',
+                        '≪', '≫', '∝', '∼', '≈', '∫', '∮', '∅', '∴', '⊕',
+                        '⊗', '⊘', '⊔', '⊓', '∧', '∨', '∼', '⊂', '⊃', '⋅',
+                        '⊔', '⊓', 'ℵ', 'ℝ', 'ℕ', 'ℤ', 'ℚ', 'ℂ', 'ℍ', '↔',
+                        '←', '→', '∘', 
+                    ].map(function(symbol, index) {
+                        return (
+                            <Grid item xs={2} sm={1} md={1} key={index}>
+                                <MenuItem
+                                    onClick={function() {
+                                        insertSymbol(selectedTopicIndex, selectedTextIndex, symbol);
+                                        handleSymbolMenuClose();
+                                    }}
+                                    style={{
+                                        display: 'flex',
+                                        justifyContent: 'center',
+                                        padding: '5px 10px',
+                                    }}
+                                >
+                                    {symbol}
+                                </MenuItem>
+                            </Grid>
+                        );
+                    })}
+                </Grid>
+            </Menu>
+
 
             <div className="footer-buttons2">
-                <Button 
-                    variant="outlined"
-                    onClick={addNewTopic} 
-                    style={{
-                        border: '1px solid #333',
-                        padding: '20px 20px',
-                        fontSize: '2rem',
-                        minWidth: '50px',
-                        transition: 'background-color 0.3s ease',
-                        backgroundColor: 'white',
-                        color: 'black'
-                    }}
-                    onMouseEnter={(e) => {
-                        e.target.style.backgroundColor = 'lightgray';
-                    }}
-                    onMouseLeave={(e) => {
-                        e.target.style.backgroundColor = 'white';
-                    }}
-                >
-                    <PlusIcon style={{ backgroundColor: 'transparent' }} />
+                <Button variant="contained" component="span" onClick={addTextTopic}>
+                    Add Text
                 </Button>
+                <label htmlFor="image-upload">
+                <input
+                    accept="image/*"
+                    id="image-upload"
+                    type="file"
+                    style={{ display: 'none' }}
+                    onChange={addImageTopic}
+                />
+                <Button variant="contained" component="span">
+                    Add Image
+                </Button>
+                </label>
             </div>
-
 
             <div className="footer-buttons">
                 <IconButton onClick={handleNext} aria-label="next">

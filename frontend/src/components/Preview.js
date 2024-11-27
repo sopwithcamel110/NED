@@ -29,9 +29,6 @@ const Preview = () => {
         <IconButton onClick={handleBack} aria-label="back">
           <ArrowBackIcon fontSize="large" />
         </IconButton>
-        <Button variant="outlined" startIcon={<CompressIcon />}>
-          Compress
-        </Button>
         <Button variant="contained" startIcon={<DownloadIcon />} onClick={handleDownload}>
           Download
         </Button>
