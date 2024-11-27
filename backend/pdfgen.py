@@ -25,8 +25,6 @@ DEC_PRECISION = 6
 SCRIPT_FONT_SIZE = 0.7  # super/subscript font size
 Y_SCRIPT = 1 - SCRIPT_FONT_SIZE
 
-DEFAULT_MAX_PAGE = 2
-
 DEFAULT_FONT_SIZE = 11
 MIN_FONT_SIZE = 5 # can change? 
 REDUCE_MULT = 0.15 # multiplier to reduce font size
@@ -71,14 +69,13 @@ class CheatsheetGenerator:
         self,
         topics: List[Topic],
         dimensions: Tuple[float, float] = A4,
-        max_page: int = DEFAULT_MAX_PAGE #
+        max_pages: int = None,
     ):
         self.topics = topics
         self.original_topics = copy.deepcopy(topics) # saved information in case of reseting
         self.width, self.height = dimensions
         self.font_size = DEFAULT_FONT_SIZE
-        self.max_page = max_page
-        self.min_font_size = MIN_FONT_SIZE
+        self.max_pages = max_pages
         self._pdf_buffer = io.BytesIO()
         self._canvas = canvas.Canvas(self._pdf_buffer, pagesize=A4)
 
@@ -363,7 +360,7 @@ class CheatsheetGenerator:
         :return: io.BytesIO buffer containing the generated PDF.
         """
 
-        while self.font_size >= self.min_font_size:
+        while self.font_size >= MIN_FONT_SIZE:
             try:
                 print(f"Creating cheatsheet with font size {self.font_size}...")
                 self.topics = copy.deepcopy(self.original_topics)
@@ -411,7 +408,7 @@ class CheatsheetGenerator:
                 self._pdf_buffer.seek(0)
 
                 # Check the page count
-                if self.max_page >= len(packer):
+                if self.max_pages == None or self.max_pages >= len(packer):
                     print("PDF created successfully within page limit.")
                     return self._pdf_buffer
 
@@ -422,8 +419,9 @@ class CheatsheetGenerator:
             except Exception as e:
                 print(f"Error during PDF creation: {e}")
                 raise
+        
 
-        raise ValueError("Unable to create a PDF within the page limit using the available font sizes.")
+        print("Unable to create a PDF within the page limit using the available font sizes.")
         return self._pdf_buffer # return whatever works with some error message for user
 
 
