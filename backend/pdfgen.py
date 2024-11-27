@@ -69,12 +69,13 @@ class CheatsheetGenerator:
         self,
         topics: List[Topic],
         dimensions: Tuple[float, float] = A4,
+        font_size: float = DEFAULT_FONT_SIZE,
         max_pages: int = None,
     ):
         self.topics = topics
         self.original_topics = copy.deepcopy(topics) # saved information in case of reseting
         self.width, self.height = dimensions
-        self.font_size = DEFAULT_FONT_SIZE
+        self.font_size = font_size
         self.max_pages = max_pages
         self._pdf_buffer = io.BytesIO()
         self._canvas = canvas.Canvas(self._pdf_buffer, pagesize=A4)
