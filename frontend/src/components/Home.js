@@ -14,7 +14,7 @@ import QuestionMarkIcon from '@mui/icons-material/QuestionMark';
 import NotInterestedIcon from '@mui/icons-material/NotInterested';
 import CodeIcon from '@mui/icons-material/Code';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
-import { TextField, IconButton, Button, Toolbar, Tooltip, Menu, MenuItem, FormControlLabel, Checkbox } from '@mui/material';
+import { TextField, IconButton, Divider, Button, Toolbar, Tooltip, Menu, MenuItem, FormControlLabel, Checkbox } from '@mui/material';
 import FunctionsIcon from '@mui/icons-material/Functions';
 import Grid from '@mui/material/Grid2';
 import './Home.css';
@@ -43,10 +43,12 @@ const Home = () => {
     const [maxPages, setMaxPages] = useState(null); // State for "Max pages"
 
     const handleMaxPagesChange = (event) => {
-        const value = event.target.value;
+        let value = event.target.value;
+        if (value <= 0){
+            value = "";
+        }
         setMaxPages(value === "" ? null : parseInt(value));
     };
-
     
     const updateTopics = (newTopics) => {
         setTopics(newTopics);
@@ -164,57 +166,65 @@ const Home = () => {
         }
     };
 
+    //bulletpoint, numlist
     const applyFormatting = (type, topicIndex, textIndex) => {
         const updatedTopics = [...topics];
-        let text = updatedTopics[topicIndex].textSegments[textIndex];
-
+        const text = updatedTopics[topicIndex].textSegments[textIndex];
+        const removeFormatting = (lines) => 
+            lines.map(line => line.replace(/^•\s|^\d+\.\s/, ''));
+        const lines = text.split('\n');
+        const strippedLines = removeFormatting(lines);
         if (type === 'numbered') {
-            text = text.split('\n').map((line, i) => `${i + 1}. ${line}`).join('\n');
+            updatedTopics[topicIndex].textSegments[textIndex] = strippedLines
+                .map((line, i) => `${i + 1}. ${line}`)
+                .join('\n');
         } else if (type === 'bulleted') {
-            text = text.split('\n').map(line => `• ${line}`).join('\n');
-        } else if (type === 'code') {
-            text = `\`\`\`\n${text}\n\`\`\``;
+            updatedTopics[topicIndex].textSegments[textIndex] = strippedLines
+                .map((line) => `• ${line}`)
+                .join('\n');
         }
-
-        updatedTopics[topicIndex].textSegments[textIndex] = text;
         updateTopics(updatedTopics);
     };
 
-    const insertExponent = (topicIndex, textIndex) => { //exponent button
+    const insertAtCursor = (topicIndex, textIndex, insertText) => {
         const updatedTopics = [...topics];
-        const currentText = updatedTopics[topicIndex].textSegments[textIndex];
-        updatedTopics[topicIndex].textSegments[textIndex] = currentText + '^{}';
-        updateTopics(updatedTopics);
-    };
-
-
-    const insertSubscript = (topicIndex, textIndex) => {  //subscript Button
-        const updatedTopics = [...topics];
-        const currentText = updatedTopics[topicIndex].textSegments[textIndex];
-        updatedTopics[topicIndex].textSegments[textIndex] = currentText + '_{}';
-        updateTopics(updatedTopics);
-    };
-
-    const insertSQRT = (topicIndex, textIndex) => {  //Square root bttn
-        const updatedTopics = [...topics];
-        const currentText = updatedTopics[topicIndex].textSegments[textIndex];
-        updatedTopics[topicIndex].textSegments[textIndex] = currentText + '√{}';
-        updateTopics(updatedTopics);
-    };
-
-    const insertNoWrap = (topicIndex, textIndex) => {  //no txt wrap
-        const updatedTopics = [...topics];
-        const currentText = updatedTopics[topicIndex].textSegments[textIndex];
-        updatedTopics[topicIndex].textSegments[textIndex] = currentText + '\\\\';
-        updateTopics(updatedTopics);
-    };
+        const textFieldId = `text-segment-${topicIndex}-${textIndex}`;
+        const textField = document.getElementById(textFieldId);
     
-    const insertCodeBlock = (topicIndex, textIndex) => {  //no txt wrap
+        if (textField) {
+            const { selectionStart, selectionEnd } = textField;
+            const currentText = updatedTopics[topicIndex].textSegments[textIndex];
+            updatedTopics[topicIndex].textSegments[textIndex] = 
+                currentText.slice(0, selectionStart) + 
+                insertText + 
+                currentText.slice(selectionEnd);
+            updateTopics(updatedTopics);
+            setTimeout(() => {
+                textField.selectionStart = textField.selectionEnd = selectionStart + insertText.length;
+                textField.focus();
+            }, 0);
+        }
+    };
+
+    const insertExponent = (topicIndex, textIndex) => {
+        insertAtCursor(topicIndex, textIndex, "^{}");
+    };
+
+    const insertSubscript = (topicIndex, textIndex) => {
+        insertAtCursor(topicIndex, textIndex, "_{}");
+    };
+
+    const insertSymbol = (topicIndex, textIndex, symbol) => {
+        insertAtCursor(topicIndex, textIndex, symbol)
+    }
+    
+    const insertCodeBlock = (topicIndex, textIndex) => {  //code part
         const updatedTopics = [...topics];
         const currentText = updatedTopics[topicIndex].textSegments[textIndex];
         updatedTopics[topicIndex].textSegments[textIndex] = currentText + '<<< >>>';
         updateTopics(updatedTopics);
     };
+
     //math symbol dropdown menu
     const handleSymbolMenuOpen = (event, topicIndex, textIndex) => {
         setSymbolMenuAnchorEl(event.currentTarget);
@@ -224,14 +234,6 @@ const Home = () => {
     
     const handleSymbolMenuClose = () => {
         setSymbolMenuAnchorEl(null);
-    };
-    
-    const handleSymbolSelect = (symbol) => {
-        const updatedTopics = [...topics];
-        const currentText = updatedTopics[selectedTopicIndex].textSegments[selectedTextIndex];
-        updatedTopics[selectedTopicIndex].textSegments[selectedTextIndex] = currentText + symbol;
-        updateTopics(updatedTopics);
-        handleSymbolMenuClose();
     };
     
 
@@ -285,12 +287,12 @@ const Home = () => {
                                                 />
                                                 <Toolbar className="toolbar">
                                                     <Tooltip title="Bullet List" arrow>
-                                                        <IconButton onClick={() => applyFormatting('bulleted', topicIndex, textIndex)}>
+                                                        <IconButton onClick={() => applyFormatting('bulleted', topicIndex, 0)}>
                                                             <FormatListBulletedIcon />
                                                         </IconButton>
                                                     </Tooltip>
                                                     <Tooltip title="Numbered List" arrow>
-                                                        <IconButton onClick={() => applyFormatting('numbered', topicIndex, textIndex)}>
+                                                        <IconButton onClick={() => applyFormatting('numbered', topicIndex, 0)}>
                                                             <FormatListNumberedIcon />
                                                         </IconButton>
                                                     </Tooltip>
@@ -309,16 +311,16 @@ const Home = () => {
                                                             <SubscriptIcon/>
                                                         </IconButton>
                                                     </Tooltip>
-                                                    <Tooltip title="Square Root" arrow>
-                                                        <IconButton onClick={() => insertSQRT(topicIndex, 0)}>
-                                                            <QuestionMarkIcon/>
-                                                        </IconButton>
-                                                    </Tooltip>
                                                     <Tooltip title="Insert Symbol" arrow>
                                                         <IconButton onClick={(e) => handleSymbolMenuOpen(e, topicIndex, 0)}>
                                                             <FunctionsIcon />
                                                         </IconButton>
                                                     </Tooltip>
+                                                    <Divider 
+                                                        orientation="vertical" 
+                                                        flexItem 
+                                                        sx={{ margin: '0 10px' }} // Add spacing around the divider
+                                                    />
                                                     <FormControlLabel
                                                         control={
                                                             <Checkbox
@@ -327,7 +329,7 @@ const Home = () => {
                                                                 color="primary"
                                                             />
                                                         }
-                                                        label="No Wrap"
+                                                        label="No Text Wrap"
                                                     />
                                                 </Toolbar>
                                             </div>
@@ -402,7 +404,7 @@ const Home = () => {
                     style={{ padding: '10px', display: 'flex', flexWrap: 'wrap' }}
                 >
                     {[
-                        '∞', 'π', 'e', 'Σ', 'Ω', 'Δ', '∑', '√', '±', '∩',
+                        '∞', 'π', 'e', 'Σ', 'Ω', 'Δ', '∑', '±', '∩', '√',
                         '∪', '∈', '∉', '⊂', '⊃', '⊆', '⊇', '∃', '∀', '∧',
                         '∨', '⇒', '⇔', '∇', '∂', '⊥', '⊤', '≠', '≈', '≡',
                         '≪', '≫', '∝', '∼', '≈', '∫', '∮', '∅', '∴', '⊕',
@@ -413,7 +415,10 @@ const Home = () => {
                         return (
                             <Grid item xs={2} sm={1} md={1} key={index}>
                                 <MenuItem
-                                    onClick={function() { handleSymbolSelect(symbol); }}
+                                    onClick={function() {
+                                        insertSymbol(selectedTopicIndex, selectedTextIndex, symbol);
+                                        handleSymbolMenuClose();
+                                    }}
                                     style={{
                                         display: 'flex',
                                         justifyContent: 'center',
@@ -427,6 +432,7 @@ const Home = () => {
                     })}
                 </Grid>
             </Menu>
+
 
             <div className="footer-buttons2">
                 <Button variant="contained" component="span" onClick={addTextTopic}>
