@@ -1,5 +1,8 @@
 import io
 import re
+import copy
+
+from PIL import Image
 import unicodedata
 from enum import Enum
 from typing import Any, Dict, List, Tuple
@@ -18,6 +21,11 @@ import wordwrap
 DEC_PRECISION = 6
 SCRIPT_FONT_SIZE = 0.7  # super/subscript font size
 Y_SCRIPT = 1 - SCRIPT_FONT_SIZE
+
+DEFAULT_FONT_SIZE = 11
+MIN_FONT_SIZE = 5 # can change? 
+REDUCE_MULT = 0.15 # multiplier to reduce font size
+ROUND_VAL = 1 # rounding to nth place
 
 # Register fonts
 pdfmetrics.registerFont(TTFont('Bullet-Font', 'fonts/NotoSans-Regular.ttf'))
@@ -58,14 +66,14 @@ class CheatsheetGenerator:
         self,
         topics: List[Topic],
         dimensions: Tuple[float, float] = A4,
-        font_size: float = 5,
+        font_size: float = DEFAULT_FONT_SIZE,
         max_pages: int = None,
     ):
         self.topics = topics
+        self.original_topics = copy.deepcopy(topics) # saved information in case of reseting
         self.width, self.height = dimensions
         self.font_size = font_size
         self.max_pages = max_pages
-
         self._pdf_buffer = io.BytesIO()
         self._canvas = canvas.Canvas(self._pdf_buffer, pagesize=A4)
 
@@ -125,7 +133,24 @@ class CheatsheetGenerator:
                                         superscript)
                 x += subscript_width + self._canvas.stringWidth(
                     superscript, font, self.font_size * SCRIPT_FONT_SIZE)
+                
+        return x
 
+    def _reset_canvas_and_buffer(self):
+        """Resets the canvas and buffer for PDF regeneration."""
+        self._pdf_buffer = io.BytesIO()
+        self._canvas = canvas.Canvas(self._pdf_buffer, pagesize=A4)
+
+    def _lower_font(self, packer) -> float:
+        """Lowers font size depending on how many topics are over page limit"""
+        _topics = 0
+        for i in range(self.max_page, len(packer)):
+            _topics += len(packer[i])
+        
+        self.font_size = round(self.font_size - 
+                                round(_topics * REDUCE_MULT, ROUND_VAL), 
+                                ROUND_VAL)
+        
     @staticmethod
     def _parse_style(content: Topic) -> None:
         """
@@ -219,6 +244,7 @@ class CheatsheetGenerator:
 
         raw_topic = content['topic'][0]
         raw_content = content['content']
+        
 
         max_str_len = max(
             self._styleStringWidth(raw_topic, 'Topic-Font'),
@@ -342,51 +368,74 @@ class CheatsheetGenerator:
 
     def create_pdf(self) -> io.BytesIO:
         """
-        Create a fully optimized cheatsheet from a list of topics. Utilizes formatting and
-        positioning to make efficient use of white space.
+        Create a fully optimized cheatsheet from a list of topics. If the PDF exceeds the maximum
+        allowed pages, it will regenerate the PDF using smaller fonts until it fits.
+        
+        :return: io.BytesIO buffer containing the generated PDF.
         """
-        print("Creating cheatsheet...")
+        while self.font_size >= MIN_FONT_SIZE:
+            try:
+                print(f"Creating cheatsheet with font size {self.font_size}...")
+                self.topics = copy.deepcopy(self.original_topics)
+                
+                # Reset the canvas and buffer
+                self._reset_canvas_and_buffer()
 
-        self._preprocess_data()
+                # Preprocess topics for packing
+                self._preprocess_data()
 
-        packer = newPacker(mode=PackingMode.Online, rotation=False)
+                # Initialize the packer
+                packer = newPacker(mode=PackingMode.Online, rotation=False)
 
-        # Add infinite A4 bins
-        packer.add_bin(float2dec(self.width, DEC_PRECISION),
-                       float2dec(self.height, DEC_PRECISION),
-                       count=float('inf'))
+                # Add infinite A4 bins
+                packer.add_bin(float2dec(self.width, DEC_PRECISION),
+                            float2dec(self.height, DEC_PRECISION),
+                            count=float('inf'))
 
-        # Pack topics
-        for i, content in enumerate(self.topics):
-            w, h = self._get_dimensions(content)
-            packer.add_rect(float2dec(w, DEC_PRECISION),
-                            float2dec(h, DEC_PRECISION), i)
+                # Pack topics into the bins
+                for i, content in enumerate(self.topics):
+                    w, h = self._get_dimensions(content)
+                    packer.add_rect(float2dec(w, DEC_PRECISION),
+                                    float2dec(h, DEC_PRECISION), i)
 
-        # Display rectpacked topics on PDF
-        for abin in packer:
-            for rect in abin:
-                x = float(rect.x)
-                y = self.height - float(
-                    rect.y
-                )  # rectpack uses bottom-left origin, adjust for reportlab
-                w = float(rect.width)
-                h = float(rect.height)
-                rid = rect.rid
+                # Generate the PDF
+                for abin in packer:
+                    for rect in abin:
+                        x = float(rect.x)
+                        y = self.height - float(rect.y)  # Adjust for bottom-left origin
+                        w = float(rect.width)
+                        h = float(rect.height)
+                        rid = rect.rid
 
-                content = self.topics[rid]
-                self._place_content(content, x, y)
+                        content = self.topics[rid]
+                        self._place_content(content, x, y)
 
-            # Create new blank page
-            self._canvas.showPage()
+                    # Add a new blank page for the next bin
+                    self._canvas.showPage()
 
-        # Verify no topics were dropped
-        assert len(packer.rect_list()) == len(self.topics)
+                # Ensure all topics are packed
+                assert len(packer.rect_list()) == len(self.topics)
 
-        # Save the PDF
-        self._canvas.save()
+                # Save the PDF to the buffer
+                self._canvas.save()
+                self._pdf_buffer.seek(0)
 
-        self._pdf_buffer.seek(0)
-        return self._pdf_buffer
+                # Check the page count
+                if self.max_pages == None or self.max_pages >= len(packer):
+                    print("PDF created successfully within page limit.")
+                    return self._pdf_buffer
+
+                # Reduce the font size if the page count exceeds the limit
+                print("PDF exceeds the page limit. Reducing font size...")
+                self._lower_font(packer)
+
+            except Exception as e:
+                print(f"Error during PDF creation: {e}")
+                raise
+        
+
+        print("Unable to create a PDF within the page limit using the available font sizes.")
+        return self._pdf_buffer # return whatever works with some error message for user
 
 
 if __name__ == "__main__":
