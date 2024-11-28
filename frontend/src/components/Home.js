@@ -71,7 +71,7 @@ const Home = () => {
         }
       };
       
-      const collectAndSaveTopics = async () => {
+    const collectAndSaveTopics = async () => {
         const formData = new FormData();
 
         formData.append(`meta_max_pages`, maxPages);
@@ -91,7 +91,7 @@ const Home = () => {
         });
       
         return await saveTopics(formData);
-      };
+    };
 
     // Delete a topic from the backend
     const deleteTopic = async (index) => {
@@ -138,20 +138,50 @@ const Home = () => {
     };
 
     const handleNext = async () => {
-        // Make sure topics are valid before saving
-        const allValid = topics.filter((t) => t.media == 'text').every(
-          (topic) => topic.topic.trim() !== '' && topic.textSegments.some((segment) => segment.trim() !== '')
+        const allValid = topics?.filter((t) => t.media === 'text').every(
+          (topic) =>
+            topic.topic.trim() !== '' &&
+            topic.textSegments.some((segment) => segment.trim() !== '')
         );
-        
         if (!allValid) {
-          alert('Please ensure all topics have titles and at least one text segment.');
+          showErrorToast('Please ensure all topics have titles and at least one text segment.', 'red');
           return;
         }
-        localStorage.setItem('topics', JSON.stringify(topics));
-        
-        var location = await collectAndSaveTopics();
-        navigate('/preview', { state: { pdfLocation: location } });
-      };
+      
+        try {
+          localStorage.setItem('topics', JSON.stringify(topics));
+          const location = await collectAndSaveTopics();
+          if (!location) {
+            showErrorToast('Failed to generate preview.', 'orange');
+            return;
+          }
+          navigate('/preview', { state: { pdfLocation: location } });
+        } catch (error) {
+          showErrorToast('An error occurred while processing your request.', 'red');
+          console.error(error);
+        }
+    };
+      
+    function showErrorToast(errMsg, backgroundColor = 'black') {
+        let container = document.getElementById('toast-container');
+        if (!container) {
+          container = document.createElement('div');
+          container.id = 'toast-container';
+          document.body.appendChild(container);
+        }
+        const toast = document.createElement('div');
+        toast.classList.add('toast');
+        toast.textContent = errMsg;
+        toast.style.backgroundColor = backgroundColor;
+        toast.style.color = 'white';
+        toast.style.padding = '10px';
+        toast.style.margin = '10px 0';
+        toast.style.borderRadius = '5px';
+        toast.style.position = 'relative';
+        toast.style.animation = 'fade-in-out 3s forwards';
+        container.appendChild(toast);
+        setTimeout(() => toast.remove(), 4000);
+    }   
 
     const scrollToContent = async() => {
         document.getElementById('content-section').scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -235,32 +265,44 @@ const Home = () => {
     const handleSymbolMenuClose = () => {
         setSymbolMenuAnchorEl(null);
     };
-    
 
     return (
         <div className="home-container" >
             {/* Welcome Section */}
             <div className="welcome-section">
-                {/* <h1>Welcome to Note Sheet Editor</h1> */}
-                {/* testing something out here */}
-                <h1> </h1>
-                <h1> </h1>
-                <h1> </h1>
-                <ArrowDownwardIcon className="arrow-icon" onClick={scrollToContent} />
-                <p>Get Started</p>
-        </div>
-        {/* Main Content Section */}
-        <div id="content-section" className="content-section">
-            <TextField
-                        id="max-pages-input"
-                        label="Max Pages"
-                        type="number"
-                        variant="outlined"
-                        value={maxPages !== null ? maxPages : ""}
-                        onChange={handleMaxPagesChange}
-                        style={{ marginBottom: '20px', width: '200px' }}
-                        helperText="Optional. Defaults to infinite."
-                    />
+                <div className="icon"></div>
+                <div
+                    style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        justifyContent: 'center',
+                        alignItems: 'center', // Center-aligns the content horizontally
+                        background: 'rgba(255, 255, 255, 0.5)', // Semi-transparent background
+                        backdropFilter: 'blur(10px)', // Adds blur effect
+                        height: '300px',
+                        width: '800px',
+                        border: '1px solid gray',
+                        borderRadius: '8px',
+                        cursor: 'pointer', // Adds pointer cursor on hover
+                    }}
+                    >
+                    <h1>Welcome to Note Sheet Editor</h1>
+                    <ArrowDownwardIcon className="arrow-icon" onClick={scrollToContent} />
+                    <p>Click to Start</p>
+                </div>
+            </div>
+            {/* Main Content Section */}
+            <div id="content-section" className="content-section">
+                <TextField
+                    id="max-pages-input"
+                    label="Max Pages"
+                    type="number"
+                    variant="outlined"
+                    value={maxPages !== null ? maxPages : ""}
+                    onChange={handleMaxPagesChange}
+                    style={{ marginBottom: '20px', width: '200px' }}
+                    helperText="Optional. Defaults to infinite."
+                />
             <h2>Enter Notes Here</h2>
             <DragDropContext onDragEnd={onDragEnd}>
                 <Droppable droppableId="droppable" direction="vertical">
