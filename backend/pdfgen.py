@@ -144,7 +144,7 @@ class CheatsheetGenerator:
     def _lower_font(self, packer) -> float:
         """Lowers font size depending on how many topics are over page limit"""
         _topics = 0
-        for i in range(self.max_page, len(packer)):
+        for i in range(self.max_pages, len(packer)):
             _topics += len(packer[i])
         
         self.font_size = round(self.font_size - 
@@ -344,7 +344,7 @@ class CheatsheetGenerator:
                 normalized = []
                 for bullet in content['content']:
                     normalized.append(
-                        unicodedata.normalize('NFKC', bullet).strip())
+                        unicodedata.normalize('NFKC', bullet).rstrip())
                 content['content'] = normalized
 
                 # Convert strs to StyledStrs

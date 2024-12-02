@@ -90,7 +90,7 @@ const Home = () => {
                 // If topic is a dictionary
                 formData.append(`data_${index}`, JSON.stringify({
                     'topic': topic.topic,
-                    'content': topic.textSegments[0].split('\n'),
+                    'content': topic.textSegments[0].trim().split('\n'),
                     'media': topic.media,
                     'nowrap': topic.nowrap,
                   }));
@@ -153,6 +153,7 @@ const Home = () => {
         );
         if (!allValid) {
           showErrorToast('Please ensure all topics have titles and at least one text segment.', 'red');
+          setIsLoading(false);
           return;
         }
       
@@ -161,6 +162,7 @@ const Home = () => {
           const location = await collectAndSaveTopics();
           if (!location) {
             showErrorToast('Failed to generate preview.', 'orange');
+            setIsLoading(false);
             return;
           }
           navigate('/preview', { state: { pdfLocation: location } });
