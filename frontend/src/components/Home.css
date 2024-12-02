@@ -153,4 +153,31 @@ h2 {
     10%, 90% { opacity: 1; transform: translateY(0); }
     100% { opacity: 0; transform: translateY(-10px); }
   }
+
+
+.spinner-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: white; /* Semi-transparent background */
+    display: flex;
+    flex-direction: column; /* Align items vertically */
+    justify-content: center;
+    align-items: center;
+    z-index: 9999; /* Ensure it is on top */
+}
+
+.spinner-text {
+    font-size: 24px; /* Adjust font size */
+    font-weight: bold;
+    margin-bottom: 20px; /* Add space between the text and the GIF */
+    text-align: center; /* Optional, for centering the text */
+}
+
+.spinner-gif {
+    width: 600px; /* Adjust GIF size */
+    height: auto; /* Maintain aspect ratio */
+}
   

@@ -13,7 +13,7 @@ import QuestionMarkIcon from '@mui/icons-material/QuestionMark';
 // import EmojiSymbolsIcon from '@mui/icons-material/EmojiSymbols';
 import NotInterestedIcon from '@mui/icons-material/NotInterested';
 import CodeIcon from '@mui/icons-material/Code';
-import CloudUploadIcon from '@mui/icons-material/CloudUpload';
+import CircularProgress from '@mui/material/CircularProgress';
 import { TextField, IconButton, Divider, Button, Toolbar, Tooltip, Menu, MenuItem, FormControlLabel, Checkbox } from '@mui/material';
 import FunctionsIcon from '@mui/icons-material/Functions';
 import Grid from '@mui/material/Grid2';
@@ -28,6 +28,13 @@ const Home = () => {
         return Array.isArray(savedTopics) && savedTopics.length > 0 ? savedTopics : [{ topic: '', textSegments: [''], media: 'text', nowrap: false }];
     });
     const navigate = useNavigate();
+
+    const [isLoading, setIsLoading] = useState(false);
+
+    useEffect(() => {
+        // Log whenever `isLoading` changes for debugging
+        console.log('isLoading changed:', isLoading);
+    }, [isLoading]);
 
     //math symbols
     const [symbolMenuAnchorEl, setSymbolMenuAnchorEl] = useState(null); 
@@ -138,6 +145,7 @@ const Home = () => {
     };
 
     const handleNext = async () => {
+        setIsLoading(true);
         const allValid = topics?.filter((t) => t.media === 'text').every(
           (topic) =>
             topic.topic.trim() !== '' &&
@@ -160,6 +168,7 @@ const Home = () => {
           showErrorToast('An error occurred while processing your request.', 'red');
           console.error(error);
         }
+        setIsLoading(false);
     };
       
     function showErrorToast(errMsg, backgroundColor = 'black') {
@@ -494,11 +503,24 @@ const Home = () => {
                 </label>
             </div>
 
-            <div className="footer-buttons">
-                <IconButton onClick={handleNext} aria-label="next">
-                    <ArrowForwardIcon fontSize="large" />
-                </IconButton>
-            </div>
+            
+
+            {isLoading ? (
+                        <div className="spinner-overlay">
+                            <img 
+                                src="https://media1.tenor.com/m/N5NKR5L3choAAAAd/writing-eric-cartman.gif" 
+                                alt="Loading..." 
+                                className="spinner-gif" 
+                            />
+                            <div className="spinner-text">Generating...</div>
+                        </div>
+                    ) : (
+                        <div className="footer-buttons">
+                            <IconButton onClick={handleNext} aria-label="next">
+                                <ArrowForwardIcon fontSize="large" />
+                            </IconButton>
+                        </div>
+                    )}
         </div>
     </div>
     );
