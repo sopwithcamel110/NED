@@ -14,6 +14,7 @@ import QuestionMarkIcon from '@mui/icons-material/QuestionMark';
 import NotInterestedIcon from '@mui/icons-material/NotInterested';
 import CodeIcon from '@mui/icons-material/Code';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
+import CircularProgress from '@mui/material/CircularProgress';
 import { TextField, IconButton, Button, Toolbar, Tooltip, Menu, MenuItem, FormControlLabel, Checkbox } from '@mui/material';
 import FunctionsIcon from '@mui/icons-material/Functions';
 import Grid from '@mui/material/Grid2';
@@ -30,7 +31,12 @@ const Home = () => {
     const [anchorEl, setAnchorEl] = useState(null); // For symbol menu
     const contentRef = useRef(null);
     const navigate = useNavigate();
-
+    const [isLoading, setIsLoading] = useState(false);
+  
+    useEffect(() => {
+        // Log whenever `isLoading` changes for debugging
+        console.log('isLoading changed:', isLoading);
+    }, [isLoading]);
     //math symbols
     const [symbolMenuAnchorEl, setSymbolMenuAnchorEl] = useState(null); 
     const [selectedTopicIndex, setSelectedTopicIndex] = useState(null);
@@ -138,20 +144,36 @@ const Home = () => {
     };
 
     const handleNext = async () => {
-        // Make sure topics are valid before saving
-        const allValid = topics.filter((t) => t.media == 'text').every(
-          (topic) => topic.topic.trim() !== '' && topic.textSegments.some((segment) => segment.trim() !== '')
+        // Ensure topics are valid before proceeding
+        const allValid = topics.filter((t) => t.media === 'text').every(
+            (topic) => topic.topic.trim() !== '' && topic.textSegments.some((segment) => segment.trim() !== '')
         );
-        
+    
         if (!allValid) {
-          alert('Please ensure all topics have titles and at least one text segment.');
-          return;
+            alert('Please ensure all topics have titles and at least one text segment.');
+            return;
         }
+    
+        // Save topics to local storage
         localStorage.setItem('topics', JSON.stringify(topics));
-        
-        var location = await collectAndSaveTopics();
-        navigate('/preview', { state: { pdfLocation: location } });
-      };
+    
+        console.log('Clicked Next');
+        setIsLoading(true);
+    
+        try {
+            const location = await collectAndSaveTopics();
+            console.log('Location received:', location);
+    
+            setTimeout(() => {
+                navigate('/preview', { state: { pdfLocation: location } });
+                setIsLoading(false); 
+            }, 2000); 
+            
+        } catch (error) {
+            console.error('Error while handling next:', error);
+            setIsLoading(false);
+        }
+    };
 
     const scrollToContent = async() => {
         document.getElementById('content-section').scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -238,223 +260,237 @@ const Home = () => {
     
 
     return (
-        <div className="home-container" >
+        <div className="home-container">
             {/* Welcome Section */}
             <div className="welcome-section">
-                {/* <h1>Welcome to Note Sheet Editor</h1> */}
-                {/* testing something out here */}
                 <h1> </h1>
                 <h1> </h1>
                 <h1> </h1>
                 <ArrowDownwardIcon className="arrow-icon" onClick={scrollToContent} />
                 <p>Get Started</p>
-        </div>
-        {/* Main Content Section */}
-        <div id="content-section" className="content-section">
-            <TextField
-                        id="max-pages-input"
-                        label="Max Pages"
-                        type="number"
-                        variant="outlined"
-                        value={maxPages !== null ? maxPages : ""}
-                        onChange={handleMaxPagesChange}
-                        style={{ marginBottom: '20px', width: '200px' }}
-                        helperText="Optional. Defaults to infinite."
-                    />
-            <h2>Enter Notes Here</h2>
-            <DragDropContext onDragEnd={onDragEnd}>
-                <Droppable droppableId="droppable" direction="vertical">
-                    {(provided) => (
-                        <div ref={provided.innerRef} {...provided.droppableProps}>
-                            {topics.map((topicObj, topicIndex) => (
-                                <Draggable key={topicIndex} draggableId={`topic-${topicIndex}`} index={topicIndex}>
-                                    {(provided) => (
-                                        <div
-                                            ref={provided.innerRef}
-                                            {...provided.draggableProps}
-                                            {...provided.dragHandleProps}
-                                            className="topic-container"
-                                        >   
-                                            {topicObj.media == 'text' ? <><div className="topic-row">
-                                                <TextField
-                                                    id="outlined-basic"
-                                                    label="Enter Topic"
-                                                    variant="outlined"
-                                                    value={topicObj.topic}
-                                                    onChange={(e) => handleTopicChange(topicIndex, e.target.value)}
-                                                    className="topic-input"
-                                                    style={{ width: '500px' }}
-                                                />
-                                                <Toolbar className="toolbar">
-                                                    <Tooltip title="Bullet List" arrow>
-                                                        <IconButton onClick={() => applyFormatting('bulleted', topicIndex, textIndex)}>
-                                                            <FormatListBulletedIcon />
-                                                        </IconButton>
-                                                    </Tooltip>
-                                                    <Tooltip title="Numbered List" arrow>
-                                                        <IconButton onClick={() => applyFormatting('numbered', topicIndex, textIndex)}>
-                                                            <FormatListNumberedIcon />
-                                                        </IconButton>
-                                                    </Tooltip>
-                                                    <Tooltip title="Code Block" arrow>
-                                                        <IconButton onClick={() => insertCodeBlock(topicIndex, 0)}>
-                                                            <CodeIcon />
-                                                        </IconButton>
-                                                    </Tooltip>
-                                                    <Tooltip title="Exponent" arrow>
-                                                        <IconButton onClick={() => insertExponent(topicIndex, 0)}>
-                                                            <SuperscriptIcon/>
-                                                        </IconButton>
-                                                    </Tooltip>
-                                                    <Tooltip title="Subscript" arrow>
-                                                        <IconButton onClick={() => insertSubscript(topicIndex, 0)}>
-                                                            <SubscriptIcon/>
-                                                        </IconButton>
-                                                    </Tooltip>
-                                                    <Tooltip title="Square Root" arrow>
-                                                        <IconButton onClick={() => insertSQRT(topicIndex, 0)}>
-                                                            <QuestionMarkIcon/>
-                                                        </IconButton>
-                                                    </Tooltip>
-                                                    <Tooltip title="Insert Symbol" arrow>
-                                                        <IconButton onClick={(e) => handleSymbolMenuOpen(e, topicIndex, 0)}>
-                                                            <FunctionsIcon />
-                                                        </IconButton>
-                                                    </Tooltip>
-                                                    <FormControlLabel
-                                                        control={
-                                                            <Checkbox
-                                                                onChange={(e) => handleNoWrapChange(topicIndex, e.target.value)}
-                                                                color="primary"
+            </div>
+    
+            {/* Main Content Section */}
+            <div id="content-section" className="content-section">
+                <TextField
+                    id="max-pages-input"
+                    label="Max Pages"
+                    type="number"
+                    variant="outlined"
+                    value={maxPages !== null ? maxPages : ""}
+                    onChange={handleMaxPagesChange}
+                    style={{ marginBottom: '20px', width: '200px' }}
+                    helperText="Optional. Defaults to infinite."
+                />
+                <h2>Enter Notes Here</h2>
+                <DragDropContext onDragEnd={onDragEnd}>
+                    <Droppable droppableId="droppable" direction="vertical">
+                        {(provided) => (
+                            <div ref={provided.innerRef} {...provided.droppableProps}>
+                                {topics.map((topicObj, topicIndex) => (
+                                    <Draggable key={topicIndex} draggableId={`topic-${topicIndex}`} index={topicIndex}>
+                                        {(provided) => (
+                                            <div
+                                                ref={provided.innerRef}
+                                                {...provided.draggableProps}
+                                                {...provided.dragHandleProps}
+                                                className="topic-container"
+                                            >
+                                                {topicObj.media === 'text' ? (
+                                                    <>
+                                                        <div className="topic-row">
+                                                            <TextField
+                                                                id="outlined-basic"
+                                                                label="Enter Topic"
+                                                                variant="outlined"
+                                                                value={topicObj.topic}
+                                                                onChange={(e) => handleTopicChange(topicIndex, e.target.value)}
+                                                                className="topic-input"
+                                                                style={{ width: '500px' }}
                                                             />
-                                                        }
-                                                        label="No Wrap"
+                                                            <Toolbar className="toolbar">
+                                                                <Tooltip title="Bullet List" arrow>
+                                                                    <IconButton onClick={() => applyFormatting('bulleted', topicIndex)}>
+                                                                        <FormatListBulletedIcon />
+                                                                    </IconButton>
+                                                                </Tooltip>
+                                                                <Tooltip title="Numbered List" arrow>
+                                                                    <IconButton onClick={() => applyFormatting('numbered', topicIndex)}>
+                                                                        <FormatListNumberedIcon />
+                                                                    </IconButton>
+                                                                </Tooltip>
+                                                                <Tooltip title="Code Block" arrow>
+                                                                    <IconButton onClick={() => insertCodeBlock(topicIndex)}>
+                                                                        <CodeIcon />
+                                                                    </IconButton>
+                                                                </Tooltip>
+                                                                <Tooltip title="Exponent" arrow>
+                                                                    <IconButton onClick={() => insertExponent(topicIndex)}>
+                                                                        <SuperscriptIcon />
+                                                                    </IconButton>
+                                                                </Tooltip>
+                                                                <Tooltip title="Subscript" arrow>
+                                                                    <IconButton onClick={() => insertSubscript(topicIndex)}>
+                                                                        <SubscriptIcon />
+                                                                    </IconButton>
+                                                                </Tooltip>
+                                                                <Tooltip title="Square Root" arrow>
+                                                                    <IconButton onClick={() => insertSQRT(topicIndex)}>
+                                                                        <QuestionMarkIcon />
+                                                                    </IconButton>
+                                                                </Tooltip>
+                                                                <Tooltip title="Insert Symbol" arrow>
+                                                                    <IconButton onClick={(e) => handleSymbolMenuOpen(e, topicIndex)}>
+                                                                        <FunctionsIcon />
+                                                                    </IconButton>
+                                                                </Tooltip>
+                                                                <FormControlLabel
+                                                                    control={
+                                                                        <Checkbox
+                                                                            onChange={(e) => handleNoWrapChange(topicIndex, e.target.value)}
+                                                                            color="primary"
+                                                                        />
+                                                                    }
+                                                                    label="No Wrap"
+                                                                />
+                                                            </Toolbar>
+                                                        </div>
+    
+                                                        <div className="text-box-container">
+                                                            {topicObj.textSegments.map((segment, textIndex) => (
+                                                                <div key={textIndex} className="text-box">
+                                                                    <TextField
+                                                                        id={`text-segment-${topicIndex}-${textIndex}`}
+                                                                        label="Enter Text"
+                                                                        multiline
+                                                                        rows={12}
+                                                                        value={segment}
+                                                                        style={{ paddingBottom: '2px' }}
+                                                                        onChange={(e) => handleTextChange(topicIndex, textIndex, e.target.value)}
+                                                                        className="consistent-textarea"
+                                                                    />
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    </>
+                                                ) : (
+                                                    <img
+                                                        key={topicIndex}
+                                                        src={topicObj.url}
+                                                        alt={`Uploaded ${topicIndex + 1}`}
+                                                        style={{ width: '100px', margin: '10px' }}
                                                     />
-                                                </Toolbar>
-                                            </div>
-
-                                            <div className="text-box-container">
-                                                {topicObj.textSegments.map((segment, textIndex) => (
-                                                <div key={textIndex} className="text-box">
-                                                    <TextField
-                                                        id={`text-segment-${topicIndex}-${textIndex}`}
-                                                        label="Enter Text"
-                                                        multiline
-                                                        rows={12}
-                                                        value={segment}
-                                                        style={{ paddingBottom: '2px' }}
-                                                        onChange={(e) => handleTextChange(topicIndex, textIndex, e.target.value)}
-                                                        className="consistent-textarea"
-                                                    />
+                                                )}
+    
+                                                <div className="button-row" style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                                                    <Button
+                                                        variant="outlined"
+                                                        color="error"
+                                                        onMouseEnter={(e) => {
+                                                            e.target.style.backgroundColor = 'red';
+                                                            e.target.style.borderColor = 'black';
+                                                            e.target.style.color = 'white';
+                                                        }}
+                                                        onMouseLeave={(e) => {
+                                                            e.target.style.backgroundColor = 'transparent';
+                                                            e.target.style.color = 'red';
+                                                            e.target.style.borderColor = 'red';
+                                                        }}
+                                                        onClick={() => deleteTopic(topicIndex)}
+                                                    >
+                                                        <DeleteIcon />
+                                                    </Button>
                                                 </div>
-                                                ))}
-                                            </div></>:<><img
-                                    key={topicIndex}
-                                    src={topicObj.url}
-                                    alt={`Uploaded ${topicIndex + 1}`}
-                                    style={{ width: '100px', margin: '10px' }}
-                                /></>}
-                                            
-                                            <div className="button-row" style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                                                <Button 
-                                                    variant="outlined" 
-                                                    color="error"
-                                                    onMouseEnter={(e) => {
-                                                        e.target.style.backgroundColor = 'red';
-                                                        e.target.style.borderColor = 'black';
-                                                        e.target.style.color = 'white';
-                                                    }}
-                                                    onMouseLeave={(e) => {
-                                                        e.target.style.backgroundColor = 'transparent';
-                                                        e.target.style.color = 'red';
-                                                        e.target.style.borderColor = 'red';
-                                                    }}
-                                                    onClick={() => deleteTopic(topicIndex)}
-                                                >
-                                                    <DeleteIcon/>
-                                                </Button>
                                             </div>
-
-                                        </div>
-                                    )}
-                                </Draggable>
-                            ))}
-                            {provided.placeholder}
+                                        )}
+                                    </Draggable>
+                                ))}
+                                {provided.placeholder}
+                            </div>
+                        )}
+                    </Droppable>
+                </DragDropContext>
+    
+                <Menu
+                    anchorEl={symbolMenuAnchorEl}
+                    open={Boolean(symbolMenuAnchorEl)}
+                    onClose={handleSymbolMenuClose}
+                    PaperProps={{
+                        style: {
+                            maxHeight: '400px',
+                            overflowY: 'auto',
+                            width: '500px',
+                        },
+                    }}
+                >
+                    <Grid
+                        container
+                        spacing={1}
+                        style={{ padding: '10px', display: 'flex', flexWrap: 'wrap' }}
+                    >
+                        {[
+                            '∞', 'π', 'e', 'Σ', 'Ω', 'Δ', '∑', '√', '±', '∩',
+                            '∪', '∈', '∉', '⊂', '⊃', '⊆', '⊇', '∃', '∀', '∧',
+                            '∨', '⇒', '⇔', '∇', '∂', '⊥', '⊤', '≠', '≈', '≡',
+                            '≪', '≫', '∝', '∼', '≈', '∫', '∮', '∅', '∴', '⊕',
+                            '⊗', '⊘', '⊔', '⊓', '∧', '∨', '∼', '⊂', '⊃', '⋅',
+                            '⊔', '⊓', 'ℵ', 'ℝ', 'ℕ', 'ℤ', 'ℚ', 'ℂ', 'ℍ', '↔',
+                            '←', '→', '∘',
+                        ].map(function(symbol, index) {
+                            return (
+                                <Grid item xs={2} sm={1} md={1} key={index}>
+                                    <MenuItem
+                                        onClick={function() { handleSymbolSelect(symbol); }}
+                                        style={{
+                                            display: 'flex',
+                                            justifyContent: 'center',
+                                            padding: '5px 10px',
+                                        }}
+                                    >
+                                        {symbol}
+                                    </MenuItem>
+                                </Grid>
+                            );
+                        })}
+                    </Grid>
+                </Menu>
+    
+                <div className="footer-buttons2">
+                    <Button variant="contained" component="span" onClick={addTextTopic}>
+                        Add Text
+                    </Button>
+                    <label htmlFor="image-upload">
+                        <input
+                            accept="image/*"
+                            id="image-upload"
+                            type="file"
+                            style={{ display: 'none' }}
+                            onChange={addImageTopic}
+                        />
+                        <Button variant="contained" component="span">
+                            Add Image
+                        </Button>
+                    </label>
+                </div>
+    
+                    {isLoading ? (
+                        <div className="spinner-overlay">
+                            <img 
+                                src="https://media1.tenor.com/m/N5NKR5L3choAAAAd/writing-eric-cartman.gif" 
+                                alt="Loading..." 
+                                className="spinner-gif" 
+                            />
+                            <div className="spinner-text">Generating...</div>
+                        </div>
+                    ) : (
+                        <div className="footer-buttons">
+                            <IconButton onClick={handleNext} aria-label="next">
+                                <ArrowForwardIcon fontSize="large" />
+                            </IconButton>
                         </div>
                     )}
-                </Droppable>
-            </DragDropContext>
-                
-            <Menu
-                anchorEl={symbolMenuAnchorEl}
-                open={Boolean(symbolMenuAnchorEl)}
-                onClose={handleSymbolMenuClose}
-                PaperProps={{
-                    style: {
-                        maxHeight: '400px',
-                        overflowY: 'auto', 
-                        width: '500px',
-                    },
-                }}
-            >
-                <Grid
-                    container
-                    spacing={1}
-                    style={{ padding: '10px', display: 'flex', flexWrap: 'wrap' }}
-                >
-                    {[
-                        '∞', 'π', 'e', 'Σ', 'Ω', 'Δ', '∑', '√', '±', '∩',
-                        '∪', '∈', '∉', '⊂', '⊃', '⊆', '⊇', '∃', '∀', '∧',
-                        '∨', '⇒', '⇔', '∇', '∂', '⊥', '⊤', '≠', '≈', '≡',
-                        '≪', '≫', '∝', '∼', '≈', '∫', '∮', '∅', '∴', '⊕',
-                        '⊗', '⊘', '⊔', '⊓', '∧', '∨', '∼', '⊂', '⊃', '⋅',
-                        '⊔', '⊓', 'ℵ', 'ℝ', 'ℕ', 'ℤ', 'ℚ', 'ℂ', 'ℍ', '↔',
-                        '←', '→', '∘', 
-                    ].map(function(symbol, index) {
-                        return (
-                            <Grid item xs={2} sm={1} md={1} key={index}>
-                                <MenuItem
-                                    onClick={function() { handleSymbolSelect(symbol); }}
-                                    style={{
-                                        display: 'flex',
-                                        justifyContent: 'center',
-                                        padding: '5px 10px',
-                                    }}
-                                >
-                                    {symbol}
-                                </MenuItem>
-                            </Grid>
-                        );
-                    })}
-                </Grid>
-            </Menu>
-
-            <div className="footer-buttons2">
-                <Button variant="contained" component="span" onClick={addTextTopic}>
-                    Add Text
-                </Button>
-                <label htmlFor="image-upload">
-                <input
-                    accept="image/*"
-                    id="image-upload"
-                    type="file"
-                    style={{ display: 'none' }}
-                    onChange={addImageTopic}
-                />
-                <Button variant="contained" component="span">
-                    Add Image
-                </Button>
-                </label>
-            </div>
-
-            <div className="footer-buttons">
-                <IconButton onClick={handleNext} aria-label="next">
-                    <ArrowForwardIcon fontSize="large" />
-                </IconButton>
             </div>
         </div>
-    </div>
-    );
-};
+    )};
 
 export default Home;
