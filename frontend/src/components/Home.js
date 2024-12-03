@@ -4,16 +4,11 @@ import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
 import DeleteIcon from '@mui/icons-material/Delete';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
-import PlusIcon from '@mui/icons-material/Add';
 import FormatListNumberedIcon from '@mui/icons-material/FormatListNumbered';
 import FormatListBulletedIcon from '@mui/icons-material/FormatListBulleted';
 import SuperscriptIcon from '@mui/icons-material/Superscript';
 import SubscriptIcon from '@mui/icons-material/Subscript';
-import QuestionMarkIcon from '@mui/icons-material/QuestionMark';
-// import EmojiSymbolsIcon from '@mui/icons-material/EmojiSymbols';
-import NotInterestedIcon from '@mui/icons-material/NotInterested';
 import CodeIcon from '@mui/icons-material/Code';
-import CircularProgress from '@mui/material/CircularProgress';
 import { TextField, IconButton, Divider, Button, Toolbar, Tooltip, Menu, MenuItem, FormControlLabel, Checkbox } from '@mui/material';
 import FunctionsIcon from '@mui/icons-material/Functions';
 import Grid from '@mui/material/Grid2';
@@ -28,7 +23,6 @@ const Home = () => {
         return Array.isArray(savedTopics) && savedTopics.length > 0 ? savedTopics : [{ topic: '', textSegments: [''], media: 'text', nowrap: false }];
     });
     const navigate = useNavigate();
-
     const [isLoading, setIsLoading] = useState(false);
 
     useEffect(() => {
@@ -36,20 +30,21 @@ const Home = () => {
         console.log('isLoading changed:', isLoading);
     }, [isLoading]);
 
-    //math symbols
+    //states for math symbol menu, selected topic and text
     const [symbolMenuAnchorEl, setSymbolMenuAnchorEl] = useState(null); 
     const [selectedTopicIndex, setSelectedTopicIndex] = useState(null);
     const [selectedTextIndex, setSelectedTextIndex] = useState(null); 
 
+    //functionality for nowrap toggle button
     const handleNoWrapChange = (index) => {
         const newTopics = [...topics];
         newTopics[index].nowrap = !newTopics[index].nowrap;
         updateTopics(newTopics);
     };
 
-    const [maxPages, setMaxPages] = useState(null); // State for "Max pages"
+    const [maxPages, setMaxPages] = useState(null); // state for "Max pages"
 
-    const handleMaxPagesChange = (event) => {
+    const handleMaxPagesChange = (event) => { //function for 'max pages' integer to never go below 0
         let value = event.target.value;
         if (value <= 0){
             value = "";
@@ -77,17 +72,16 @@ const Home = () => {
             return "";
         }
       };
-      
+
+    // collects topics data and send to backend
     const collectAndSaveTopics = async () => {
         const formData = new FormData();
 
         formData.append(`meta_max_pages`, maxPages);
         topics.forEach((topic, index) => {
             if (topic.file) {
-                // If topic contains a File object
                 formData.append(`file_${index}`, topic.file);
             } else {
-                // If topic is a dictionary
                 formData.append(`data_${index}`, JSON.stringify({
                     'topic': topic.topic,
                     'content': topic.textSegments[0].trim().split('\n'),
@@ -96,7 +90,6 @@ const Home = () => {
                   }));
             }
         });
-      
         return await saveTopics(formData);
     };
 
@@ -112,30 +105,31 @@ const Home = () => {
         });
     };
 
-    const handleTopicChange = (index, value) => {
+    
+    const handleTopicChange = (index, value) => { //topic change
         const newTopics = [...topics];
         newTopics[index].topic = value;
         updateTopics(newTopics);
     };
 
-    const handleTextChange = (topicIndex, textIndex, value) => {
+    const handleTextChange = (topicIndex, textIndex, value) => { //text change
         const newTopics = [...topics];
         newTopics[topicIndex].textSegments[textIndex] = value;
         updateTopics(newTopics);
     };
 
-    const addTextTopic = () => {
+    const addTextTopic = () => { //create new topic/content box
         const newTopic = { topic: '', textSegments: [''], media: 'text', nowrap: false };
         setTopics([...topics, newTopic]);
     };
 
-    const addImageTopic = (event) => {
+    const addImageTopic = (event) => { //create new image box
         const file = event.target.files[0];
         const newTopic = { url: URL.createObjectURL(file), file, media: 'image' };
         setTopics([...topics, newTopic]);
     };
 
-    const onDragEnd = (result) => {
+    const onDragEnd = (result) => { //drag and drop topic/content box
         const { source, destination } = result;
         if (!destination) return;
         const reorderedTopics = Array.from(topics);
@@ -144,7 +138,7 @@ const Home = () => {
         updateTopics(reorderedTopics);
     };
 
-    const handleNext = async () => {
+    const handleNext = async () => { //handles what occurs when 'next' button is clicked. Error handling
         setIsLoading(true);
         const allValid = topics?.filter((t) => t.media === 'text').every(
           (topic) =>
@@ -173,7 +167,7 @@ const Home = () => {
         setIsLoading(false);
     };
       
-    function showErrorToast(errMsg, backgroundColor = 'black') {
+    function showErrorToast(errMsg, backgroundColor = 'black') { //function to show error. called from "handleNext" function
         let container = document.getElementById('toast-container');
         if (!container) {
           container = document.createElement('div');
@@ -194,7 +188,7 @@ const Home = () => {
         setTimeout(() => toast.remove(), 4000);
     }   
 
-    const scrollToContent = async() => {
+    const scrollToContent = async() => { //called when button on landing page is clicked. Brings user to text input area
         document.getElementById('content-section').scrollIntoView({ behavior: 'smooth', block: 'center' });
         try {
             await fetch(API_BASE_URL + "/ping", {
@@ -207,7 +201,7 @@ const Home = () => {
         }
     };
 
-    //bulletpoint, numlist
+    //bulletpoint, numlist application to content area of specified topic/content box
     const applyFormatting = (type, topicIndex, textIndex) => {
         const updatedTopics = [...topics];
         const text = updatedTopics[topicIndex].textSegments[textIndex];
@@ -227,6 +221,7 @@ const Home = () => {
         updateTopics(updatedTopics);
     };
 
+    //inserts symbols, exponent or subscript where cursor is located at in textbox
     const insertAtCursor = (topicIndex, textIndex, insertText) => {
         const updatedTopics = [...topics];
         const textFieldId = `text-segment-${topicIndex}-${textIndex}`;
@@ -259,7 +254,7 @@ const Home = () => {
         insertAtCursor(topicIndex, textIndex, symbol)
     }
     
-    const insertCodeBlock = (topicIndex, textIndex) => {  //code part
+    const insertCodeBlock = (topicIndex, textIndex) => {  //unfinished. Ideally denotes content that should be considered "code"
         const updatedTopics = [...topics];
         const currentText = updatedTopics[topicIndex].textSegments[textIndex];
         updatedTopics[topicIndex].textSegments[textIndex] = currentText + '<<< >>>';
@@ -287,14 +282,14 @@ const Home = () => {
                         display: 'flex',
                         flexDirection: 'column',
                         justifyContent: 'center',
-                        alignItems: 'center', // Center-aligns the content horizontally
-                        background: 'rgba(255, 255, 255, 0.5)', // Semi-transparent background
-                        backdropFilter: 'blur(10px)', // Adds blur effect
+                        alignItems: 'center',
+                        background: 'rgba(255, 255, 255, 0.5)',
+                        backdropFilter: 'blur(10px)',
                         height: '300px',
                         width: '800px',
                         border: '1px solid gray',
                         borderRadius: '8px',
-                        cursor: 'pointer', // Adds pointer cursor on hover
+                        cursor: 'pointer',
                     }}
                     >
                     <h1>Welcome to Note Sheet Editor</h1>
@@ -372,7 +367,7 @@ const Home = () => {
                                                     <Divider 
                                                         orientation="vertical" 
                                                         flexItem 
-                                                        sx={{ margin: '0 10px' }} // Add spacing around the divider
+                                                        sx={{ margin: '0 10px' }}
                                                     />
                                                     <FormControlLabel
                                                         control={
@@ -386,7 +381,6 @@ const Home = () => {
                                                     />
                                                 </Toolbar>
                                             </div>
-
                                             <div className="text-box-container">
                                                 {topicObj.textSegments.map((segment, textIndex) => (
                                                 <div key={textIndex} className="text-box">
@@ -408,7 +402,7 @@ const Home = () => {
                                     alt={`Uploaded ${topicIndex + 1}`}
                                     style={{ width: '100px', margin: '10px' }}
                                 /></>}
-                                            
+
                                             <div className="button-row" style={{ display: 'flex', justifyContent: 'flex-end' }}>
                                                 <Button 
                                                     variant="outlined" 
@@ -428,7 +422,6 @@ const Home = () => {
                                                     <DeleteIcon/>
                                                 </Button>
                                             </div>
-
                                         </div>
                                     )}
                                 </Draggable>
@@ -486,7 +479,6 @@ const Home = () => {
                 </Grid>
             </Menu>
 
-
             <div className="footer-buttons2">
                 <Button variant="contained" component="span" onClick={addTextTopic}>
                     Add Text
@@ -505,8 +497,6 @@ const Home = () => {
                 </label>
             </div>
 
-            
-
             {isLoading ? (
                         <div className="spinner-overlay">
                             <img 
@@ -523,8 +513,8 @@ const Home = () => {
                             </IconButton>
                         </div>
                     )}
+            </div>
         </div>
-    </div>
     );
 };
 
