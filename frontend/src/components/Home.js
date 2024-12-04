@@ -500,7 +500,7 @@ const Home = () => {
             {isLoading ? (
                         <div className="spinner-overlay">
                             <img 
-                                src="https://media1.tenor.com/m/N5NKR5L3choAAAAd/writing-eric-cartman.gif" 
+                                src="https://media4.giphy.com/media/chbSItHGveOfYt5OqC/giphy.gif?cid=6c09b952owndqg1d7t06ns6kf2u2p4yclth5ofoc0zjvx25p&ep=v1_internal_gif_by_id&rid=giphy.gif&ct=s" 
                                 alt="Loading..." 
                                 className="spinner-gif" 
                             />

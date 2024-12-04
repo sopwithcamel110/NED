@@ -23,9 +23,9 @@ SCRIPT_FONT_SIZE = 0.7  # super/subscript font size
 Y_SCRIPT = 1 - SCRIPT_FONT_SIZE
 
 DEFAULT_FONT_SIZE = 11
-MIN_FONT_SIZE = 5 # can change? 
-REDUCE_MULT = 0.15 # multiplier to reduce font size
-ROUND_VAL = 1 # rounding to nth place
+MIN_FONT_SIZE = 5  # can change?
+REDUCE_MULT = 0.15  # multiplier to reduce font size
+ROUND_VAL = 1  # rounding to nth place
 
 # Register fonts
 pdfmetrics.registerFont(TTFont('Bullet-Font', 'fonts/NotoSans-Regular.ttf'))
@@ -70,7 +70,8 @@ class CheatsheetGenerator:
         max_pages: int = None,
     ):
         self.topics = topics
-        self.original_topics = copy.deepcopy(topics) # saved information in case of reseting
+        self.original_topics = copy.deepcopy(
+            topics)  # saved information in case of reseting
         self.width, self.height = dimensions
         self.font_size = font_size
         self.max_pages = max_pages
@@ -133,7 +134,7 @@ class CheatsheetGenerator:
                                         superscript)
                 x += subscript_width + self._canvas.stringWidth(
                     superscript, font, self.font_size * SCRIPT_FONT_SIZE)
-                
+
         return x
 
     def _reset_canvas_and_buffer(self):
@@ -146,11 +147,11 @@ class CheatsheetGenerator:
         _topics = 0
         for i in range(self.max_pages, len(packer)):
             _topics += len(packer[i])
-        
-        self.font_size = round(self.font_size - 
-                                round(_topics * REDUCE_MULT, ROUND_VAL), 
-                                ROUND_VAL)
-        
+
+        self.font_size = round(
+            self.font_size - round(_topics * REDUCE_MULT, ROUND_VAL),
+            ROUND_VAL)
+
     @staticmethod
     def _parse_style(content: Topic) -> None:
         """
@@ -244,7 +245,6 @@ class CheatsheetGenerator:
 
         raw_topic = content['topic'][0]
         raw_content = content['content']
-        
 
         max_str_len = max(
             self._styleStringWidth(raw_topic, 'Topic-Font'),
@@ -254,7 +254,7 @@ class CheatsheetGenerator:
 
         max_str_len = int(min(max_str_len, self.width))
         content['width'] = max_str_len
-        if content['nowrap']:
+        if 'nowrap' in content and content['nowrap']:
             # Do not wrap if nowrap is set
             return
 
@@ -375,9 +375,10 @@ class CheatsheetGenerator:
         """
         while self.font_size >= MIN_FONT_SIZE:
             try:
-                print(f"Creating cheatsheet with font size {self.font_size}...")
+                print(
+                    f"Creating cheatsheet with font size {self.font_size}...")
                 self.topics = copy.deepcopy(self.original_topics)
-                
+
                 # Reset the canvas and buffer
                 self._reset_canvas_and_buffer()
 
@@ -389,8 +390,8 @@ class CheatsheetGenerator:
 
                 # Add infinite A4 bins
                 packer.add_bin(float2dec(self.width, DEC_PRECISION),
-                            float2dec(self.height, DEC_PRECISION),
-                            count=float('inf'))
+                               float2dec(self.height, DEC_PRECISION),
+                               count=float('inf'))
 
                 # Pack topics into the bins
                 for i, content in enumerate(self.topics):
@@ -402,7 +403,8 @@ class CheatsheetGenerator:
                 for abin in packer:
                     for rect in abin:
                         x = float(rect.x)
-                        y = self.height - float(rect.y)  # Adjust for bottom-left origin
+                        y = self.height - float(
+                            rect.y)  # Adjust for bottom-left origin
                         w = float(rect.width)
                         h = float(rect.height)
                         rid = rect.rid
@@ -432,10 +434,11 @@ class CheatsheetGenerator:
             except Exception as e:
                 print(f"Error during PDF creation: {e}")
                 raise
-        
 
-        print("Unable to create a PDF within the page limit using the available font sizes.")
-        return self._pdf_buffer # return whatever works with some error message for user
+        print(
+            "Unable to create a PDF within the page limit using the available font sizes."
+        )
+        return self._pdf_buffer  # return whatever works with some error message for user
 
 
 if __name__ == "__main__":
@@ -451,14 +454,21 @@ if __name__ == "__main__":
             else:
                 data['content'].append(line)
 
-    images = ('example/dag.png', 'example/graph.png', 'example/proof.png', 'example/rules.png')
-    for i, path in enumerate(images):
-        with open(path, "rb") as img:
-            data_dict.insert(3 + 2 * i, {
-                "file": io.BytesIO(img.read()),
-                "media": "image"
-            })
+    # images = ('example/dag.png', 'example/graph.png', 'example/proof.png', 'example/rules.png')
+    # for i, path in enumerate(images):
+    #     with open(path, "rb") as img:
+    #         data_dict.insert(3 + 2 * i, {
+    #             "file": io.BytesIO(img.read()),
+    #             "media": "image"
+    #         })
 
-    gen = CheatsheetGenerator(data_dict)
-    with open("cheatsheet.pdf", "wb") as f:
-        f.write(gen.create_pdf().read())
+    for data in data_dict:
+        data['textSegments'] = [''.join(data.pop('content'))]
+        data['nowrap'] = False
+
+    import json
+    print(json.dumps(data_dict))
+
+    # gen = CheatsheetGenerator(data_dict, max_pages=2)
+    # with open("cheatsheet.pdf", "wb") as f:
+    #     f.write(gen.create_pdf().read())
