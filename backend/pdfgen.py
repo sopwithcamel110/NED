@@ -145,10 +145,7 @@ class CheatsheetGenerator:
     def _lower_font(self, packer) -> float:
         """Lowers font size depending on how many topics are over page limit"""
         _topics = 0
-
-        diff = (len(packer) - self.max_pages) // 4
-        
-        for i in range(self.max_pages + diff, len(packer)):
+        for i in range(self.max_pages, len(packer)):
             _topics += len(packer[i])
 
         self.font_size = round(
