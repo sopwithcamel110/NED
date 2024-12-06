@@ -1,4 +1,5 @@
 {
+  "main": "main.js",
   "dependencies": {
     "@emotion/react": "^11.13.3",
     "@emotion/styled": "^11.13.0",
@@ -12,7 +13,8 @@
   },
   "scripts": {
     "start": "react-scripts start",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "electron": "electron .",
+    "package": "electron-packager ."
   },
   "browserslist": {
     "production": [
@@ -25,5 +27,8 @@
       "last 1 firefox version",
       "last 1 safari version"
     ]
+  },
+  "devDependencies": {
+    "electron-packager": "^17.1.2"
   }
 }
