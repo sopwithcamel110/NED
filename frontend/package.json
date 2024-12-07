@@ -29,7 +29,7 @@
     }
   },
   "scripts": {
-    "start": "electron-forge start",
+    "start": "react-scripts start",
     "electron": "electron .",
     "package": "electron-forge package",
     "make": "electron-forge make"
