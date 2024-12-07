@@ -1,4 +1,4 @@
-# NED Cheetsheet Maker
+# NED Cheatsheet Maker
 ## How to run
 ### Start the backend
 ```bash
